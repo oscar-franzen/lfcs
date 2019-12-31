@@ -1,0 +1,1984 @@
+Table of Contents
+─────────────────
+
+1 Intro
+2 Basics
+.. 2.1 File system layout
+.. 2.2 systemd
+..... 2.2.1 Bash scripting
+.. 2.3 Change lost root password
+3 Essential commands
+.. 3.1 Help
+.. 3.2 trivial
+.. 3.3 root
+..... 3.3.1 visudo
+.. 3.4 Showing logged in users and what they are doing
+.. 3.5 IO redirection
+.. 3.6 Search for files
+.. 3.7 Working with files
+..... 3.7.1 The editor `vi'
+..... 3.7.2 File globbing
+..... 3.7.3 Comparing files
+..... 3.7.4 uniq - collapse consecutive lines
+..... 3.7.5 grep
+..... 3.7.6 sed
+..... 3.7.7 Other commands
+..... 3.7.8 I-nodes and links
+.. 3.8 Backup, compression, etc
+..... 3.8.1 Archiving
+..... 3.8.2 Backups
+.. 3.9 Permissions
+..... 3.9.1 Octal representations of permissions
+..... 3.9.2 setuid, setgid
+..... 3.9.3 Sticky bit
+..... 3.9.4 Extended attributes
+..... 3.9.5 umask
+.. 3.10 Root
+.. 3.11 Processes and resource limits
+..... 3.11.1 Process types
+..... 3.11.2 Useful commands
+..... 3.11.3 ulimit
+..... 3.11.4 Set global resource limits
+.. 3.12 Inspect library dependencies
+.. 3.13 Useful utils
+..... 3.13.1 tree
+.. 3.14 Locate a program
+4 Operation of running systems
+.. 4.1 Boot, reboot, shutdown
+.. 4.2 Modules
+.. 4.3 GRand Unified Boot loader (GRUB)
+.. 4.4 Manage processes
+..... 4.4.1 mpstat
+..... 4.4.2 ps
+..... 4.4.3 /proc/
+..... 4.4.4 list open files by a process
+..... 4.4.5 Priorities
+..... 4.4.6 kill
+..... 4.4.7 crontab
+..... 4.4.8 at
+..... 4.4.9 sar
+..... 4.4.10 misc
+..... 4.4.11 
+.. 4.5 AppArmor
+.. 4.6 Package managers
+..... 4.6.1 dpkg
+..... 4.6.2 Advanced Packacking Tool (apt)
+5 User and group management
+.. 5.1 /etc/passwd
+.. 5.2 Adding users
+.. 5.3 ACL
+..... 5.3.1 Install `getfacl' and `setfacl':
+..... 5.3.2 Check compatibility of the file system with ACL:
+..... 5.3.3 `setfacl -m u:rand:rw /mnt/asdf/test.txt'
+..... 5.3.4 `getfacl test.txt'
+..... 5.3.5 Set to a directory:
+..... 5.3.6 Remove all ACL:
+.. 5.4 Adding sudo capability for a user
+.. 5.5 Show which shell is used
+.. 5.6 Bash restricted shell
+.. 5.7 Pluggable Authentication Modules (PAM)
+.. 5.8 Show available shells and who I am
+6 Networking
+.. 6.1 Basic networking
+..... 6.1.1 Show IP address configuration
+..... 6.1.2 set IP using nmgui/nmci
+..... 6.1.3 set IP manually
+..... 6.1.4 set hostname
+..... 6.1.5 Static DNS entries
+.. 6.2 Installing an ftp server
+.. 6.3 Firewall
+.. 6.4 Show ports opened by a process
+.. 6.5 Routing
+.. 6.6 Mount NFS share
+.. 6.7 Running NFS server to share directories
+.. 6.8 Recursive DNS caching server
+7 Storage configuration
+.. 7.1 Partioning
+.. 7.2 File systems
+..... 7.2.1 Examples
+..... 7.2.2 tune2fs
+.. 7.3 Mounting
+.. 7.4 Fix file system errors
+.. 7.5 df
+.. 7.6 Encrypted partition
+..... 7.6.1 Mount at boot
+..... 7.6.2 Encrypt a swap device
+.. 7.7 Swap space
+.. 7.8 Quota
+..... 7.8.1 Creating quotas
+..... 7.8.2 Turn quotas off
+.. 7.9 RAID
+..... 7.9.1 Configure software RAID
+.. 7.10 Create logical volumes
+8 Virtualization
+9 Additional
+10 References
+
+
+1 Intro
+═══════
+
+  These are my notes for the Linux Foundation Certified System
+  administrator (LFCS) exam. The notes are *not* a complete guide to the
+  exam, but I think they cover the main topics. I have compiled these
+  notes from multiple sources freely available on the internet as a
+  summary for myself. References are found at the bottom of this
+  document. Hopefully this summary is also helpful for anyone else
+  pursuing LFCS.
+
+  Commands have been tested on Ubuntu 19. To be less repetitive, I have
+  omitted `sudo' from many commands that must be executed as root.
+
+  • Oscar Franzén <p.oscar.franzen@gmail.com>
+
+
+2 Basics
+════════
+
+  • terminal = *tty* = virtual console
+  • pseudo-ttys = terminal emulators, e.g. Xterm, tmux, etc
+  • shell = the program you see when you log in, e.g. bash, zsh, sh
+  • an /inode/ is a data structure on disk that describes and stores
+    file attributes and location
+
+
+2.1 File system layout
+──────────────────────
+
+  +--------+---------------------------------------------+
+  | Path   | Description                                 |
+  +--------+---------------------------------------------+
+  | /bin/  | Essential binaries.                         |
+  +--------+---------------------------------------------+
+  | /sbin/ | System binaries.                            |
+  +--------+---------------------------------------------+
+  | /usr/  | Contains user applications, package manager,|
+  |        | files, etc.                                 |
+  +--------+---------------------------------------------+
+  | /boot/ | Compressed kernel image (vmlinuz), initramfs|
+  |        | (initial RAM filesystem, mounted before real|
+  |        | root filesystem becomes available).         |
+  +--------+---------------------------------------------+
+  | /opt/  | Proprietary software or software downloaded |
+  |        | w/o package managers.                       |
+  +--------+---------------------------------------------+
+  | /root/ | Root lives here.                            |
+  +--------+---------------------------------------------+
+  | /var/  | Data that change frequently, etc log files, |
+  |        |mail, transient data cache, lock files.      |
+  |        |                                             |
+  +--------+---------------------------------------------+
+  | /run/  | A pseudo-fs. Transient data.                |
+  +--------+---------------------------------------------+
+  | /dev/  | Device files. Represents connected devices. |
+  +--------+---------------------------------------------+
+  | /proc/ | Pseudo-filesystem in memory with kernel data|
+  |        |structures and processes.                    |
+  +--------+---------------------------------------------+
+  | /home/ | Contains users' files and directories. But  |
+  |        |root is /root/                               |
+  +--------+---------------------------------------------+
+
+
+2.2 systemd
+───────────
+
+  • an `init' replacement designed to start processes in parallel, it
+    has always `pid=1'
+  • we can see that on Ubuntu, `/sbin/init' points to
+    `/lib/systemd/systemd'
+  • Emulates "runlevels" for compatibility with old init (`sysvinit')
+    using /targets/
+  • `runlevel' to display current runlevel
+  • Change runlevel with `telinit N' where N is the runlevel
+  • Runlevels:
+  +----------+----------------------------------+
+  | Runlevel | Description                      |
+  +----------+----------------------------------+
+  |        0 | Halt the system. Runlevel 0 is a |
+  |          |special transitional state used to|
+  |          |shutdown the system quickly.      |
+  +----------+----------------------------------+
+  |        1 |Maintenance mode used for         |
+  |          |low-level system maintenance that |
+  |          |may be impaired by normal system  |
+  |          |operation.                        |
+  |          |                                  |
+  +----------+----------------------------------+
+  |        2 | The default runlevel (on         |
+  |          |Debian-based systems).            |
+  +----------+----------------------------------+
+  |        3 | Not used on Debian-based systems.|
+  +----------+----------------------------------+
+  |        4 | Not used on Debian-based systems.|
+  +----------+----------------------------------+
+  |        5 | Not used on Debian-based systems.|
+  +----------+----------------------------------+
+  |        6 |Reboot the system.                |
+  +----------+----------------------------------+
+  • Runlevel can be changed with `init [0-6]' although this is not the
+    recommended way to change runlevel
+  • `service' is a wrapper for `systemctl' and `service' supports a
+    subset of actions. `systemctl' is the main utility for service
+    management.
+
+
+2.2.1 Bash scripting
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ if CONDITION; then 
+  │ 	COMMANDS;
+  │ else
+  │ 	OTHER-COMMANDS 
+  │ fi
+  └────
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Condition         Evaluates to true when                
+  ─────────────────────────────────────────────────────────
+   [ -a file ]       file exists                           
+   [ -d file ]       file exists and is a directory        
+   [ -f file ]       file exists and is a regular file     
+   [ -u file ]       file exists and its SUID bit is set   
+   [ -g file ]       file exists and its GUID bit is set   
+   [ -k file ]       file exists and its sticky bit is set 
+   [ -r file ]       file exists and is readable           
+   [ -s file ]       file exists and it is not empty       
+   [ -w file ]       file exists and it is writable        
+   [ -x file ]       file exists and it is executable      
+   [ str1 = str2 ]   Strings are equal                     
+   [ str1 != str2 ]  Strings are not equal                 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  Integer comparisons
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Condition      Evaluates to true when                 
+  ───────────────────────────────────────────────────────
+   int1 -eq int2  int2 equals to int2                    
+   int1 -ne int2  int1 not equal to int2                 
+   int1 -lt int2  int1 is less than int2                 
+   int1 -le int2  int1 is less or equal to int2          
+   int1 -gt int2  int1 is greater than int2              
+   int1 -ge int2  int1 is grreater than or equal to int2 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+  `$?' gives the exit status of the last executed command
+
+
+2.3 Change lost root password
+─────────────────────────────
+
+  1. Press shift at boot
+  2. In the GRUB menu press 'e'
+  3. On the line starting with 'linux', change 'ro' to 'rw
+     init=/bin/bash'
+  4. Press CTRL+X
+  5. `passwd root'
+  6. Reboot
+
+
+3 Essential commands
+════════════════════
+
+3.1 Help
+────────
+
+  Config examples are present in `/usr/share/doc/'.
+  ┌────
+  │ # compile manual index
+  │ mandb
+  │ man -k keyword
+  │ info command
+  └────
+
+
+3.2 trivial
+───────────
+
+  ┌────
+  │ whoami
+  └────
+
+
+3.3 root
+────────
+
+  Any member of group `wheel' have sudo access.
+  ┌────
+  │ # inherit user session
+  │ su
+  │ # fresh session
+  │ su -
+  │ # login as a different user, "-" is a shortcut for "-login"
+  │ su - user
+  │ # add to wheel
+  │ usermod -aG wheel user
+  └────
+
+
+3.3.1 visudo
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Used to edit the `/etc/sudoers' file. A line like this gives any
+  member of the group `wheel' sudo access:
+  ┌────
+  │ %wheel ALL = (ALL) ALL
+  │ 		   ^ indicate what programs are allowed to run, ALL for all
+  │ foobar ALL = (root:root) /sbin/test
+  └────
+
+
+3.4 Showing logged in users and what they are doing
+───────────────────────────────────────────────────
+
+  ┌────
+  │ w
+  └────
+
+
+3.5 IO redirection
+──────────────────
+
+  ┌────
+  │ program < input_file
+  │ program > output_file
+  │ program 2> error_file
+  │ program > output_file 2>error_file
+  │ echo 'hello world' > file1
+  │ # appends a line
+  │ echo 'hi again' >> file1
+  └────
+
+
+3.6 Search for files
+────────────────────
+
+  ┌────
+  │ find / -name "passwd"
+  │ find / -name "*passwd*"
+  │ # find files named 'zic' that are rwx for u and rx for g and o
+  │ # execute echo on each file found
+  │ find / -name "zic" -perm 755 -exec echo '{}' \;
+  │ # find all files smaller than 100kb
+  │ find / -size -100k
+  │ find / -maxdepth 3 -type f -size +2M
+  │ # find file1 _or_ file2, \ to escape (
+  │ find / \( -name file1 -o -name file2 \)
+  │ # identify all hard links to the file 'foobar'
+  │ # (i.e., finding all files with the same inode)
+  │ find / -samefile foobar
+  │ # list all files not owner by user 'root'
+  │ find / \! -user root
+  │ # search case insensitive
+  │ find / -iname "PassWd"
+  │ # identify files with identical permissions to 222
+  │ # 222 = w-rx for ugo
+  │ find / -perm 222
+  │ # at least permission 222
+  │ find / -perm -222
+  │ # write for u or write for g or write for o
+  │ find / -perm /222
+  │ # files accessed at least 24 hours ago
+  │ find / -atime +1
+  │ # uses a previously constructed database
+  │ locate file
+  │ # update the database
+  │ updatedb
+  └────
+
+
+3.7 Working with files
+──────────────────────
+
+3.7.1 The editor `vi'
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Command  What it does                            
+  ──────────────────────────────────────────────────
+   i        Insert mode                             
+   ESC      Exit any mode to command mode           
+   o        Enter insert mode and insert a new line 
+   :wq!     Write and quit                          
+   :q!      Quit w/o saving                         
+   :w!      Force write                             
+   u        Undo                                    
+   gg       Go to beginning of file                 
+   G        Go to end of file                       
+   :/foo    Search for the string "foo"             
+   n        Next occurence                          
+   N        Previous occurence                      
+   :42      Go to line 42                           
+   dd       Delete the current line                 
+   x        Delete the selected character           
+   v        Select text                             
+   y        Copy selected text                      
+   p        Paste selected text                     
+   d        Delete selected text                    
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+3.7.2 File globbing
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Example        Files and directories it matches 
+  ─────────────────────────────────────────────────
+   ls -l a*       Beginning with a                 
+   ls -l a?       Two characters beginning with a  
+   ls -l a[ab]    aa or bb                         
+   ls -l a[a-c]   aa, ab or ac                     
+   ls -l a[a-c]*  Begin with aa, ab or ac          
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+3.7.3 Comparing files
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+◊ 3.7.3.1 diff/diff3
+
+  ┌────
+  │ diff file1 file2
+  │ # output side by side in two columns
+  │ diff -y file1 file2
+  │ # compare 3 files line by line
+  │ diff3
+  └────
+
+
+3.7.4 uniq - collapse consecutive lines
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ # Compare only first two characters
+  │ uniq -w 2 file
+  │ # Prefix lines with number of occurences
+  │ uniq -c file
+  └────
+
+
+3.7.5 grep
+╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ # print the file name of the match
+  │ grep -l pattern path
+  │ # also search subdirectories of path
+  │ grep -lr pattern path
+  │ # as above but with case insensitive
+  │ grep -lri pattern path
+  └────
+
+
+3.7.6 sed
+╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ sed 's/source/target/' file
+  │ sed 's/source/target/g' file
+  │ # case inensitive
+  │ sed 's/source/target/gi' file
+  │ # apply only on row 2
+  │ sed '2s/source/target/' file
+  │ # print only changed rows
+  │ sed -n 's/source/target/p' file
+  │ # prints lines 2 to 4
+  │ sed -n 2,4p file
+  │ # deletes lines with source
+  │ sed '/source/d' file
+  │ # delete line 12
+  │ sed -n 12d file
+  │ # insert "hej" on line 5
+  │ sed '5ihej' file
+  └────
+
+
+3.7.7 Other commands
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ # sort based on column 2
+  │ sort -k 2 file
+  │ # cut using one whitespace as delimiter and print column 1 from file
+  │ cut -d " " -f1 file
+  │ # print columns 1 and 3 from file
+  │ cut -d " " -f1.3 file
+  │ ls
+  │ # long output
+  │ ls -l
+  │ # show hidden files
+  │ ls -la
+  │ # recursive
+  │ ls -lR
+  │ # list by time stamp
+  │ ls -lt
+  │ # show directory properties and not its content
+  │ ls -ld
+  │ # shows current directory
+  │ pwd
+  │ # print file content
+  │ cat
+  │ tac
+  │ # copy file1 and file2 to dest
+  │ cp file1 file2 /dest
+  │ # recursive
+  │ cp -r source/ target/
+  │ # rename a file/dir or move it
+  │ mv file1 file2
+  │ # remove a directory including read only files
+  │ rm -rf dir
+  │ # makes parent directories if needed
+  │ mkdir -p foo/bar
+  │ # removes dir (only if dir is empty)
+  │ rmdir dir
+  │ sed
+  │ # estimate space used by a file or dir (default returns size in kb)
+  │ du /sbin/
+  │ awk
+  │ cut
+  │ # substitute string1 with string2
+  │ tr string1 string2
+  │ # substitute repeated occurences of one character with a single one of
+  │ # that character
+  │ tr -s ' '
+  │ paste
+  │ # print last 10 lines of file
+  │ tail file
+  │ # print last 20 lines
+  │ tail -n 20 file
+  │ # output the tail of the file as it grows
+  │ tail -f file
+  │ # print first 10 lines of file
+  │ head file
+  │ # creates an empty file
+  │ touch file
+  │ # specific timestamp
+  │ touch -t YYMMDDhhmm file
+  │ patch
+  │ sed
+  │ awk
+  │ # add line numbers
+  │ cat <file> | nl
+  └────
+
+
+3.7.8 I-nodes and links
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+◊ 3.7.8.1 Hard links
+
+  More than one file can point to the same i-node. Must be on the same
+  device. Cannot be directories.
+  ┌────
+  │ # creates a hard link
+  │ ln target newname
+  │ # the inode will be the same for the files
+  │ ls -il
+  └────
+
+
+◊ 3.7.8.2 Symbolic links
+
+  Points to a file. If the file is removed the link becomes
+  invalid. Symbolic links have different inode numbers.
+  ┌────
+  │ ln -s target linkname
+  │ # create a symbolic link to sbin in the current dir
+  │ ln -s /sbin/
+  └────
+
+
+◊ 3.7.8.3 Show inode for a file or dir
+
+  First column shows the i-node number.
+  ┌────
+  │ ls -li
+  └────
+
+
+3.8 Backup, compression, etc
+────────────────────────────
+
+3.8.1 Archiving
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ # make tar.bz2 archive
+  │ tar -jcvf file.tar.bz2 *
+  │ # uncompress
+  │ tar -jxvf file.tar.bz2
+  │ # print content of tar file
+  │ tar -tf file.tar
+  │ # delete a file from a tar file
+  │ tar --delete -f test.tar file
+  └────
+
+
+3.8.2 Backups
+╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+◊ 3.8.2.1 dd
+
+  The `dd' program is very useful for making copies of raw disk space. A
+  common joke with `dd' is that is stands for *data destroyer*, so it
+  should be noted that it's a very dangerous utility.
+
+  Write a file containing zeros:
+  ┌────
+  │ dd if=/dev/zero of=/mnt/drive/foobar bs=2G count=1
+  └────
+
+
+  ◊ 3.8.2.1.1 Create a backup
+
+    The device _must_ be unmounted
+    ┌────
+    │ dd if=/dev/sda of=/system_images/sda.img
+    │ # make a complete copy of one disk onto another
+    │ dd if=/dev/sda of=/dev/sdb
+    └────
+
+
+  ◊ 3.8.2.1.2 Restore a backup
+
+    ┌────
+    │ dd if=/system_images/sda.img of=/dev/sda
+    └────
+
+
+  ◊ 3.8.2.1.3 Copy Master Boot Record (MBR)
+
+    ┌────
+    │ # MBR is always stored in the first 512 bytes of the disk
+    │ # bs sets the block size, count copies this number of blocks
+    │ # bs*count is the amount of data copied
+    │ dd if=/dev/sda of=mbr_sda.backup bs=512 count=1
+    └────
+
+
+◊ 3.8.2.2 rsync
+
+  ┌────
+  │ rsync -avr source dest
+  │ # -z adds compression
+  │ rsync -avrz source user@192.168.0.2:~/dest
+  │ # use ssh
+  │ rsync -avre ssh source user@192.168.0.2:~/dest
+  └────
+
+
+3.9 Permissions
+───────────────
+
+3.9.1 Octal representations of permissions
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Sum represents combinations.
+  ━━━━━━━━━━━━━━━━━━━━━━
+   Octal  Meaning       
+  ──────────────────────
+       0  no permission 
+       1  x             
+       2  w             
+       4  r             
+       5  rx            
+       6  rw            
+       7  rwx           
+  ━━━━━━━━━━━━━━━━━━━━━━
+
+  ┌────
+  │ # change owner
+  │ chown
+  │ # change group
+  │ chgrp
+  │ # change permissions
+  │ chmod
+  │ # example of chmod
+  │ chmod u+rwx,g+r,o+r fil
+  └────
+
+
+◊ 3.9.1.1 Examples
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━
+   Octal  Meaning          
+  ─────────────────────────
+    0666  rw for everyone  
+    0777  rwx for everyone 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+3.9.2 setuid, setgid
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Run a program as the user/group set as owner of the file. Cannot be
+  applied to bash scripts.
+  ┌────
+  │ chmod u+s test
+  │ chmod g+s test
+  └────
+
+
+3.9.3 Sticky bit
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  When a directory's sticky bit is set, the filesystem treats the files
+  in such directories in a special way so only the file's owner, the
+  directory's owner, or root user can rename or delete the file. Without
+  the sticky bit set, any user with write and execute permissions for
+  the directory can rename or delete contained files, regardless of the
+  file's owner. For example `/tmp/' has +t.
+  ┌────
+  │ chmod +t directory_name
+  └────
+
+
+3.9.4 Extended attributes
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Metadata associated with files. Extended attributes are not
+  interpreted by the file system. Extended attributes consists of
+  namespaces. Stored in the /inode/ of the file. ACL uses the `system'
+  namespace.
+
+  Examples:
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Flag  Meaning                                                  
+  ────────────────────────────────────────────────────────────────
+   I     Immutable, no user can change it. No hard links.         
+   a     Apppend-only                                             
+   A     No-atime-update (access time of the file is not updated) 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+  ┌────
+  │ lsattr
+  │ =chattr [+|-|=mode] filename=
+  └────
+
+
+3.9.5 umask
+╌╌╌╌╌╌╌╌╌╌╌
+
+  Can be used to remove permissions from newly created files.
+  ┌────
+  │ # remove write permissions from newly created files
+  │ umask 222
+  └────
+
+
+3.10 Root
+─────────
+
+  Sudo file is stored in `/etc/sudoers/' and `/etc/sudoers.d/'.
+  ┌────
+  │ $ sudo -s
+  └────
+
+
+3.11 Processes and resource limits
+──────────────────────────────────
+
+3.11.1 Process types
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  +-----------------+------------------------------------------------+
+  | Process type    | Description                                    |
+  |                 |                                                |
+  +-----------------+------------------------------------------------+
+  |   Interactive   |   Need to be started by a user, either at a    |
+  |     process     |           command line or through a            |
+  |                 |              graphical interface.              |
+  +-----------------+------------------------------------------------+
+  | Batch Processes | Automatic processes which aree scheduled from  |
+  |                 |and then disconnected from the terminal.        |
+  +-----------------+------------------------------------------------+
+  | Daemons         | Server processes running continuously. Mauny   |
+  |                 |launched during system startup.                 |
+  +-----------------+------------------------------------------------+
+  | Threads         | Lightweight processes that are run under the   |
+  |                 |umbrella of a main process.                     |
+  +-----------------+------------------------------------------------+
+  | Kernel threads  | Kernel tasks that users neither start nor      |
+  |                 |terminate and have little control over.         |
+  +-----------------+------------------------------------------------+
+
+
+3.11.2 Useful commands
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ ps
+  │ ps -u <username>
+  │ pgrep
+  │ kill
+  │ pkill
+  │ # kill all processes owned by group with GID=99
+  │ pkill -G 99
+  │ # kill all processes whose parent process is 4992
+  │ pkill -P 4992
+  │ killall
+  └────
+
+
+3.11.3 ulimit
+╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Used to get or set resource limits.
+  ┌────
+  │ # see current limits
+  │ ulimit -a
+  └────
+
+
+◊ 3.11.3.1 Limit stack size
+
+  When you call a function, a new "namespace" is allocated on the
+  stack. That's how functions can have local variables. As functions
+  call functions, which in turn call functions, we keep allocating more
+  and more space on the stack to maintain this deep hierarchy of
+  namespaces.
+
+  To curb programs using massive amounts of stack space, a limit is
+  usually put in place via ulimit -s. If we remove that limit via ulimit
+  -s unlimited, our programs will be able to keep gobbling up RAM for
+  their evergrowing stack until eventually the system runs out of memory
+  entirely.
+
+  ┌────
+  │ ulimit -s 4096
+  └────
+
+
+3.11.4 Set global resource limits
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  • Done in `/etc/security/limits.conf'
+  • Config format:
+    ┌────
+    │ *    hard    nproc    10
+    │ ^ user group or all (*)
+    │ 
+    │      ^ hard or soft limit
+    │ 
+    │ 	     ^ whatever should be enforced (number of processes here)
+    │ 
+    │ 		      ^ the actual limit
+    └────
+
+
+3.12 Inspect library dependencies
+─────────────────────────────────
+
+  Use `ldd <command>'.
+
+
+3.13 Useful utils
+─────────────────
+
+3.13.1 tree
+╌╌╌╌╌╌╌╌╌╌╌
+
+  Prints tree structure of a directory.
+  ┌────
+  │ apt-get install tree
+  │ tree
+  └────
+
+
+3.14 Locate a program
+─────────────────────
+
+  ┌────
+  │ which ls
+  │ # also locates where man page is (+ source code)
+  │ whereis ls
+  └────
+
+
+4 Operation of running systems
+══════════════════════════════
+
+4.1 Boot, reboot, shutdown
+──────────────────────────
+
+  ┌────
+  │ # power off, -h as in halt
+  │ shutdown -h now
+  │ # reboot
+  │ shutdown -r now
+  │ # legacy commands
+  │ reboot
+  │ halt
+  │ poweroff
+  └────
+
+
+4.2 Modules
+───────────
+
+  • Modules have `*.ko' extensions and are found in
+    `/lib/modules/<kernel-version/'
+  • `lsmod' lists loaded modules
+  • `modprobe' to load module using a database of dependency information
+    • Modules can be loaded specifying parameters: `modprobe e1000e
+          debug=2 copybreak=256'
+    • `/etc/modprobe.d/' contains default parameters applied when
+      loading a module with modprobe
+    • Module dependencies will be loaded as well
+  • `modprobe -r' to unload module
+  • `insmod' is another way to load modules directly
+  • `rmmod' is another way to unload modules
+  • `modinfo' to show details such as version, module dependencies,
+    supported hardwares, what parameters can be supploed during loading
+    etc.
+  • `depmod' to rebuild the module database
+
+
+4.3 GRand Unified Boot loader (GRUB)
+────────────────────────────────────
+
+  • Config is `/etc/default/grub' and if it is modified then run
+    `update-grub'
+  after (the actual file read by GRUB at boot is `/boot/grub/grub.cfg/',
+  but it should not be modified manually).
+  • If GRUB is not installed for some reason, install it with
+      `grub-install /dev/sdX'
+
+
+4.4 Manage processes
+────────────────────
+
+4.4.1 mpstat
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ apt-get install sysstat
+  │ mpstat
+  │ # -P to indicate which cpus
+  │ # -u for CPU utilization
+  │ # 2 second intervals
+  │ # 3 reports
+  │ mpstat -P ALL -u 2 3
+  └────
+
+
+4.4.2 ps
+╌╌╌╌╌╌╌╌
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━
+   Term  Desc              
+  ─────────────────────────
+   pid   Process id        
+   ppid  Parent process id 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━
+  ┌────
+  │ # all processes
+  │ # BSD style syntax
+  │ ps aux
+  │ # UNIX style syntax
+  │ ps -aux
+  │ ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%cpu
+  └────
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   column   meaning                                                         
+  ──────────────────────────────────────────────────────────────────────────
+   user     owner                                                           
+   pid      process ID                                                      
+   %cpu     CPU time divided by the time the process has been running       
+   %mem     resident set size divided by memory of the machine              
+   VSZ      virtual memory in KiB                                           
+   RSS      resident memory in KiB, i.e. non-swapped physical memory        
+   tty      attached terminal                                               
+   stat     process state                                                   
+   start    start time of the process                                       
+   time     cumulative CPU time                                             
+   command  command, those within [] are system processes of kernel threads 
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+4.4.3 /proc/
+╌╌╌╌╌╌╌╌╌╌╌╌
+
+  • Processes are actually directories in `/proc/[pid]'
+  • Contains current state of each process running
+    • Child processes
+    • Memory usage
+  • `/proc/meminfo'
+  • `/proc/sys/'
+    • Contains tunable kernel parameters as plain text files
+    • Can be changed with `sysctl' (or by writing to files directly)
+      • Print kernel setting: `sysctl kernel.pid_max', corresponding to
+        `/proc/sys/kernel/pid_max'
+      • `sysctl -a' prints all available settings
+    • `/etc/sysctl.conf' contains parameters applied during boot, to
+      make a change permanent, add it to this file. To apply current
+      config without rebooting, run `sysctl -p'
+
+
+4.4.4 list open files by a process
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ lsof -p [pid]
+  └────
+
+
+4.4.5 Priorities
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Lower niceness means higher priority. Range is from -20 to 19.
+  ┌────
+  │ # run a program with modified scheduling priority
+  │ nice -n value command
+  │ # alter priority of running processes (only root)
+  │ renice -n value [pid]
+  └────
+
+
+4.4.6 kill
+╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ # send SIGTERM
+  │ kill pid
+  │ # send SIGKILL
+  │ kill -9 pid
+  │ # list all available signals
+  │ kill -l
+  └────
+
+
+◊ 4.4.6.1 Signals
+
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   Signal   Description                                       
+  ────────────────────────────────────────────────────────────
+   SIGHUP   Terminate                                         
+   SIGINT   Terminate, interrupt from keyboard, CTRL-C        
+   SIGFPE   Core dump, sent from kernel                       
+   SIGKILL  Terminate, abnormal termination                   
+   SIGTERM  Terminate, graceful termination (default in kill) 
+   SIGSTOP  Stop, cannot be handled or ignored                
+   SIGTSTP  CTRL-Z                                            
+   SIGCONT  Continue                                          
+   SIGCHLD  Ignore, child stopped                             
+   SIGPIPE  Terminate, broken pipe, socket closed             
+  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+
+4.4.7 crontab
+╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ crontab -e
+  │ # or as root to modify a specific users cron jobs
+  │ crontab -e -u user
+  └────
+
+
+4.4.8 at
+╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ apt-get install at
+  │ service atd status
+  │ at
+  │ atq
+  │ atrm
+  └────
+
+
+4.4.9 sar
+╌╌╌╌╌╌╌╌╌
+
+  System activity reporter.
+  ┌────
+  │ # CPU usage report 3 times in intervals of 3 seconds
+  │ sudo sar 3 3
+  └────
+
+
+4.4.10 misc
+╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ pgrep name
+  │ pstree
+  │ uptime
+  │ strace
+  │ free
+  │ # mainly for virtual memory stats but also for CPU, process and disk statistics
+  │ vmstat
+  │ pmap
+  │ iotop
+  │ iostat
+  │ # prioritize a process in io scheduling
+  │ ionice
+  └────
+
+
+4.4.11 
+╌╌╌╌╌╌╌
+
+
+4.5 AppArmor
+────────────
+
+  • Alternative to SELinux
+  • Profile based
+  • Two modes:
+    1. Enforce
+    2. Complain
+  ┌────
+  │ apt-get install apparmor-profiles
+  │ apparmor_status
+  │ # put profile in complain mode
+  │ aa-complain
+  │ # put profile in enforcement mode
+  │ aa-enforce
+  └────
+
+
+4.6 Package managers
+────────────────────
+
+4.6.1 dpkg
+╌╌╌╌╌╌╌╌╌╌
+
+  A low-level package manager. Database is located in `/var/lib/dpkg'.
+  ┌────
+  │ # list installed packages
+  │ dpkg -l
+  │ # list installed files from a package
+  │ dpkg -L package
+  │ # query status of an installed package
+  │ dpkg -s package
+  │ # list content of deb package
+  │ dpkg -c package.deb
+  │ # install deb package
+  │ dpkg -i package.deb
+  │ # remove package
+  │ dpkg -r package.deb
+  └────
+
+
+4.6.2 Advanced Packacking Tool (apt)
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  • Based on `dpkg'.
+  ┌────
+  │ apt-cache search term
+  │ apt-cache show pkg
+  │ # Show packages whose name starts with prefix
+  │ apt-cache pkgnames openjdk
+  │ # Search all packages that contains file
+  │ apt-file search file
+  │ # List all files in the pkg. pkg doesn't need to be installed or fetched
+  │ apt-file list pkg
+  │ apt-get autoremove
+  │ apt-get clean
+  │ apt-get update
+  │ apt-get install pkg
+  │ apt-get [--purge] remove pkg
+  │ apt-get upgrade
+  └────
+
+
+5 User and group management
+═══════════════════════════
+
+5.1 /etc/passwd
+───────────────
+
+  The second field is password, is it has an `x', then passwords are
+  managed by `/etc/shadow'. `/etc/passwd' has 644 permissions that means
+  anyone can read it. This is because system programs and user apps need
+  to read the information in that file. On the other hand, `/etc/shadow'
+  has 400 permissions. `/etc/shadow' is preferred way to keep passwords
+  as it prevents anyone to read hashed passwords.
+
+
+5.2 Adding users
+────────────────
+
+  ┌────
+  │ sudo su
+  │ groupadd test
+  │ useradd mrtest
+  │ useradd mstest
+  │ usermod -a -G test mrtest
+  │ usermod -a -G test mstest
+  │ # lock user account
+  │ usermod -L username
+  │ # A locked password prevents a user to authenticate with that password, however, user
+  │ # can authenticate by other means, e.g. ssh keys etc. Locking an account eliminates to
+  │ # authenticate and use that account in any way,
+  │ passwd -l username
+  │ mkdir /mnt/asdf
+  │ touch /mnt/asdf/acl.txt
+  │ chgrp -R test /mnt/asdf/
+  │ chmod ug+rwx /mnt/asdf
+  │ chmod o+rx-w /mnt/asdf
+  │ # The point is to give a user access to /mnt/asdf without adding the user to the test group
+  │ # since that also gives access to other files.
+  │ userdel user
+  │ # chage (change user password expiry)
+  │ chage <username>
+  │ # create system account (default shell should be nologin)
+  │ useradd -r -s /usr/sbin/nologin
+  └────
+
+
+5.3 ACL
+───────
+
+  • If files inside a directory where a default ACL has been set do not
+    have a ACL of their own, they inherit the default ACL of their
+    parent directory.
+
+
+5.3.1 Install `getfacl' and `setfacl':
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  `sudo apt-get install acl'
+
+
+5.3.2 Check compatibility of the file system with ACL:
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  =tunefs -l /dev/sda2 | grep "Default mount options"
+
+
+5.3.3 `setfacl -m u:rand:rw /mnt/asdf/test.txt'
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+
+5.3.4 `getfacl test.txt'
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+
+5.3.5 Set to a directory:
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  `setfacl -m d:o:r /mnt/test/'
+
+
+5.3.6 Remove all ACL:
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  `setfacl -b /mnt/test/'
+
+
+5.4 Adding sudo capability for a user
+─────────────────────────────────────
+
+  Don't edit /etc/sudoers or /etc/sudoers.d/ directly, rather use
+  `visudo', because problems are checked before saving. For example, to
+  add `sudo' capability for user "test" add this line:
+  ┌────
+  │ test ALL=(ALL:ALL) ALL
+  └────
+
+
+5.5 Show which shell is used
+────────────────────────────
+
+  ┌────
+  │ echo $SHELL
+  └────
+
+
+5.6 Bash restricted shell
+─────────────────────────
+
+  Prevents:
+  • cd directories
+  • changing certain environment variables
+  • specify an absolut path in any command
+  • IO redirecting
+  ┌────
+  │ bash -r
+  └────
+
+
+5.7 Pluggable Authentication Modules (PAM)
+──────────────────────────────────────────
+
+  • Provides authentication policies in a uniformed and modular way for
+    various
+  applications. A PAM-aware application invokes libpam which in turn
+  checks these configuration files to apply rules and invokes PAM
+  modules. PAM integrates low-level authentication modules into a
+  high-level API that provides dynamic authentication support for
+  applications. This allows developers to write applications that
+  require authentication, independently of the underlying authentication
+  system.
+  • _To employ PAM, an application/program needs to be “PAM aware“; it
+    needs to have
+  been written and compiled specifically to use PAM. To find out if a
+  program is “PAM-aware” or not, check if it has been compiled with the
+  PAM library using `ldd command'._
+  • Main config file is `/etc/pam.conf' and `/etc/pam.d/' contain PAM
+    config files for each PAM-aware program.
+  • PAM libraries are found in `/usr/lib/x86_64-linux-gnu/security'
+    (many so files here have man pages: `man listfile')
+
+
+5.8 Show available shells and who I am
+──────────────────────────────────────
+
+  ┌────
+  │ cat /etc/shells
+  │ echo $USER
+  └────
+
+
+6 Networking
+════════════
+
+6.1 Basic networking
+────────────────────
+
+  `ifconfig' is deprecated, use `ip'
+
+
+6.1.1 Show IP address configuration
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ip addr show ip a s
+
+
+6.1.2 set IP using nmgui/nmci
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ nmtui
+  │ nmcli # CLI for network manager
+  └────
+
+
+6.1.3 set IP manually
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ip link set eth0 down ip addr add 192.168.0.2/24 dev eth0 ip link set
+  eth0 up
+
+
+6.1.4 set hostname
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Modify: /etc/hostname Show current hostname: hostname
+
+
+6.1.5 Static DNS entries
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  /etc/hosts
+
+
+6.2 Installing an ftp server
+────────────────────────────
+
+  Install the very secure ftp server and configure it for anonymous
+  access to a specific directory.
+  1. `sudo apt-get install vsftpd'
+  2. `sudo service vsftpd start'
+  3. Config file is `/etc/vsftpd.conf'
+     • Create a directory for data (anonymous access will be allowed):
+       `sudo mkdir /datamkdir /mnt/asdf/'
+  4. Modify the config file:
+     • `sudo vim /etc/vsftpd.conf'
+     • Make sure the settings are:
+       ┌────
+       │ anonymous_enable=YES
+       │ anon_root=/data/
+       │ no_anon_password=YES
+       │ write_enable=YES
+       │ local_enable=YES
+       └────
+     • Restrict users to their home directories:
+       ┌────
+       │ chroot_local_user=YES
+       │ chroot_list_enable=YES
+       │ chroot_list_file=/etc/vsftpd_chroot_list
+       └────
+     • Create an empty file: `touch /etc/vsftpd_chroot_list'
+     • Rate limits in kb:
+       ┌────
+       │ anon_max_rate=10240 # 10 kb
+       │ local_max_rate=20480 # 20 kb
+       │ max_per_ip=5 # 5 connections
+       └────
+     • Restrict data transfers to this port range:
+       ┌────
+       │ pasv_enable=YES
+       │ pasv_max_port=15500
+       │ pasv_min_port=15000
+       └────
+
+
+6.3 Firewall
+────────────
+
+  • The kernel firewall is *NetFilter*
+  • The utility to manage rules is *iptables*
+  • A frontend for *iptables* is UncomplicatedFirewall (*ufw*)
+
+
+◊ 6.3.0.1 iptables
+
+  ┌────
+  │ # list rules
+  │ iptables -L
+  │ # verbose
+  │ iptables -L -v
+  └────
+
+
+◊ 6.3.0.2 ufw
+
+  ┌────
+  │ ufw allow ssh/tcp
+  │ ufw logging on
+  │ ufw enable
+  │ ufw status
+  │ # block all network connections from one IP
+  │ ufw deny from 15.15.15.51
+  │ # block entire subnet
+  │ ufw deny from 15.15.15.0/24
+  │ # only for a specific network interface
+  │ ufw deny in on eth0 from 15.15.15.51
+  │ # allow ssh
+  │ ufw allow ssh
+  │ # or
+  │ ufw allow 22
+  │ ufw allow from 15.15.15.0/24 to any port 873
+  └────
+
+
+6.4 Show ports opened by a process
+──────────────────────────────────
+
+  ┌────
+  │ # all processes
+  │ netstat -tln 
+  └────
+
+
+6.5 Routing
+───────────
+
+  Routing IP traffic:
+  ┌────
+  │ ip route show
+  │ # or
+  │ route -n
+  │ # Add route to 192.0.2.1 through 10.0.0.1
+  │ ip route add 192.0.2.1 via 10.0.0.1
+  └────
+
+  To configure system as route forward must be enabled: `echo 1 >
+  /proc/sys/net/ipv4/ip_forward'
+
+
+6.6 Mount NFS share
+───────────────────
+
+  ┌────
+  │ # only client package needed, no need for server components
+  │ apt-get install nfs-common
+  │ mount -t nfs <IP>:/NameOfShare /mnt/my_mounted_nfs
+  └────
+
+  Permanently, by adding line to `/etc/fstab':
+  ┌────
+  │ IP:/NFS-SHARE/    /mount/point    nfs    defaults    0    0
+  └────
+
+
+6.7 Running NFS server to share directories
+───────────────────────────────────────────
+
+  ┌────
+  │ apt-get install nfs-kernel-server
+  └────
+
+
+6.8 Recursive DNS caching server
+────────────────────────────────
+
+  • `apt-get install bind9 bind9utils'
+  • `named' is one service within bind, its config is
+    `/etc/bind/named.conf.options', add the following so its within
+    `options { ... }':
+    ┌────
+    │ recursion yes;
+    │ # use google name servers as forwarders
+    │ forwarders {
+    │    8.8.8.8;
+    │    8.8.4.4;
+    │ };
+    └────
+  • Local zones are configured in `/etc/named.conf.local', examples:
+    ┌────
+    │ # DNS -> IP
+    │ zone "testing.example.com." IN {
+    │     type master;
+    │     file "/etc/bind/db.testing.example.com";
+    │ };
+    │ 
+    │ # for reverse DNS, i.e. IP -> DNS
+    │ zone "2.0.10.in-addr.arpa" IN {
+    │     type master;
+    │     file "/etc/bind/2.0.10.in-addr.arpa";
+    │ };
+    └────
+  • Content of `/etc/bind/db.testing.example.com':
+    ┌────
+    │  $TTL   604800
+    │  @      IN      SOA    testing.example.com. root.testing.example.com. (
+    │ 			     3; <-- serial increment
+    │ 			     ...
+    │ 			     ...
+    │ 			     ...
+    │ 			     ...)
+    │ @       IN      NS     ns.testing.example.com.
+    │ ns      IN      A      10.0.2.15
+    │ web1    IN      A      10.0.2.16
+    │ @       IN      AAAA   ::1
+    └────
+  • Content of `/etc/bind/2.0.10.in-addr.arpa':
+    ┌────
+    │ ; SOA lines are same as before
+    │ @      IN      NS     ns.testing.example.com.
+    │ 15     IN      PTR    ns.testing.example.com.
+    │ 16     IN      PTR    web1.testing.example.com.
+    └────
+  • Use `named-checkzone' to check for errors
+  • Restart bind: `service bind9 restart'
+  • Don't forget to change name server on the system to try it (or use
+      `dig @IP domain')
+
+
+7 Storage configuration
+═══════════════════════
+
+  • SSD naming schjeme is `/dev/nvme{order}n{ns}p{part}' where `{order}'
+    is the disk order number, `{ns}' is the namespace, and `{part}' is
+    the partition number.
+  • `blkid' can be used to identify block device attributes.
+  • `lsblk' lists all block devices found.  `lsblk -f' prints file
+    system type and UUID
+
+
+7.1 Partioning
+──────────────
+
+  • Partitions can be MBR or GPT
+    • Limit of maximum 4 partitions with MBR
+    • Limit of maximum 128 partitions with GPT
+  • For MBR, an extended partition is a normal partition that has been
+    divided into multiple logic partitions so that it is possible to
+    have more than four partitions. Only *one* extended partition can be
+    present.
+  • For creating MBR, use `fdisk', for GPT use `parted' (can also create
+    MBR) or `gdisk'.
+  ┌────
+  │ fdisk
+  │ # list all partitions
+  │ fdisk -l
+  │ parted -l
+  └────
+
+
+7.2 File systems
+────────────────
+
+  Applications do not access the physical disk directly. Instead,
+  application code access data contents by file names which is an
+  abstraction by the filesystem.  Every file is associated with an
+  inode. inode is a datastructures that holds following metadata about
+  the file:
+
+
+7.2.1 Examples
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  • ext3
+  • ext4
+  • btrfs
+  • xfs
+  • vfat (non-Linux)
+  • ntfs (non-Linux)
+  • hfs (non-Linux)
+  Available file system creation utilities: `ls -l /sbin/mkfs*'
+
+
+7.2.2 tune2fs
+╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Tune ext file system parameters such as:
+  • maximum mount count before `fsck' is called
+  • time interval between `fsck'
+  • `tune2fs -l <dev-node>' to see all parameters that can be updated.
+
+
+7.3 Mounting
+────────────
+
+  UUIDs are reliable because they are unique and consistent. Filesystem
+  UUIDs are generated when creating (format) a filesystem.
+  ┌────
+  │ mount filesystem_uuid /mount-point
+  │ mount partition_label /mount-point
+  │ # List all mounted filesystems
+  │ mount -l
+  └────
+
+
+7.4 Fix file system errors
+──────────────────────────
+
+  • Should only be run on unmounted file systems
+  • Main utility: `fsck' (files recovered by this program are placed in
+    the `lost+found' directory at the root of the file system)
+  • The easiest way to force a check of the filesystem on next reboot is
+    to create a file `/forcefsck' at the filesystem
+
+
+7.5 df
+──────
+
+  ┌────
+  │ # -T adds "Type" column
+  │ df -hT
+  └────
+
+
+7.6 Encrypted partition
+───────────────────────
+
+  Options are dm-crypt and Linux Unified Key Setup (LUKS). LUKS is more
+  secure (according to `info cryptsetup').
+  ┌────
+  │ apt-get install cryptsetup
+  │ # setup a partition
+  │ cryptsetup luksFormat /dev/sdb1
+  │ # initializes the volume, and sets an initial key or passphrase
+  │ cryptsetup luksOpen /dev/sdb1 testing
+  │ # You can see a mapping name /dev/mapper/testing
+  │ ls -l /dev/mapper/testing
+  │ cryptsetup -v status testing
+  │ # Create a file system
+  │ mkfs.ext4 /dev/mapper/testing
+  │ # Mount
+  │ mount -t ext4 /dev/mapper/testing /mnt/point
+  │ # Unmount
+  │ umount /mnt/point
+  │ cryptsetup luksClose /dev/mapper/testing
+  └────
+
+
+7.6.1 Mount at boot
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  To mount an encrypted partition at boot time, add a normal entry to
+  `/etc/fstab'. `/etc/fstab' is not aware that device is encrypted.
+  1. Make entry in `/etc/fstab':
+     ┌────
+     │ /dev/mapper/testing /media/enc ext4 defaults 0 2
+     └────
+  2. Make entry in `/etc/crypttab'. If key-file is omitted, secret will
+     be asked from the console.
+     ┌────
+     │ testing /dev/sda1 luks-secret-file
+     │ # or specify the fourth field as "none" to prompt for passphrase
+     │ # interactively from console
+     │ testing /dev/sda1 none luks
+     └────
+
+
+7.6.2 Encrypt a swap device
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  Data written to the swap device can contain sensitive information, and
+  as such it is important to consider security.
+  1. Find out the partition that is currently being used for swap, then
+     deactivate it:
+     ┌────
+     │ cat /proc/swap
+     └────
+  2. swapoff /dev/sda2
+  3. Format:
+     ┌────
+     │ cryptsetup luksFormat /dev/sda2
+     │ cryptsetup luksOpen /dev/sda2 swapcrypt
+     └────
+  4. Make it swap
+     ┌────
+     │ mkswap /dev/mapper/swapcrypt
+     └────
+  5. Test it
+     ┌────
+     │ swapon /dev/mapper/swapcrypt
+     │ cat /proc/swaps
+     └────
+  6. Add entry to `/etc/crypttab'
+     ┌────
+     │ swapcrypt /dev/sda2 /dev/urandom swap,cipher=aes-cbc-essiv:sha256,size=256
+     └────
+  7. Add entry to `/etc/fstab'
+     ┌────
+     │ /dev/mapper/swapcrypt none swap defaults 0 0
+     └────
+
+
+7.7 Swap space
+──────────────
+
+  Virtual memory can make Linux function as if it has more memory than
+  it physically has, and works in two ways:
+  1. Many programs don't use all the memory they have permission to
+     use. This is because child processes are created using
+     copy-on-write (COW) and only gets a new page of memory if there is
+     a change.
+  2. Memory can be swapped to disk when inactive and only recalled when
+     needed again.
+  ┌────
+  │ mkswap /dev/sdX1
+  │ swapon /dev/sdX1
+  │ swapoff
+  │ cat /proc/swaps
+  └────
+  Add entry to `/etc/fstab':
+  ┌────
+  │ /dev/sdX1 swap swap sw 0 0
+  └────
+
+
+7.8 Quota
+─────────
+
+  Disk quotas control maximum space particular users can have on the
+  disk. Quotas are based per filesystem basis. There are limits on
+  number of blocks and inodes. These limits are expressed as *soft* and
+  *hard* limits. Hard limits can never be exceeded. _Soft limits can be
+  exceeded for a grace period_.
+
+
+7.8.1 Creating quotas
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. Install:
+     ┌────
+     │ apt-get install quota
+     └────
+  2. File systems must be mounted with the `usrquota' or `grpquota'
+     options.
+     ┌────
+     │ mount -o usrquota /dev/sdxN /mount-point
+     └────
+  3. Generate quota accounting files (stored in root of quoted
+     filesystem):
+     ┌────
+     │ quotacheck -v /media/
+     └────
+     `quotacheck' is also used to update quotas.
+  4. Turn on quotas:
+     ┌────
+     │ # -u = user quotas, the default (can be omitted)
+     │ quotaon -vu /media/usb
+     └────
+  5. Set up quotas per user or group:
+     ┌────
+     │ edquota user
+     └────
+  6. To change grace period (editor will launch):
+     ┌────
+     │ edquota -t
+     └────
+  7. To query quota information of current user:
+     ┌────
+     │ quota
+     └────
+
+
+7.8.2 Turn quotas off
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  ┌────
+  │ quotaoff
+  └────
+
+
+7.9 RAID
+────────
+
+  • Redundant Array of Independenty Disks (RAID), spreads I/O over
+    multiple disks
+  • Can be hardware or software (part of the kernel)
+  • With hardware RAID, the OS is unaware that RAID is in use
+  • If hardware controller fails, an identical one must be used;
+    however, in software RAID the same disks can be attached to any
+    controller for lower- to mid-range hardware.
+  +------+------------------------------------------------------+
+  |Level | Description                                          |
+  +------+------------------------------------------------------+
+  |     0| No data spreading across disks. No redundancy.       |
+  +------+------------------------------------------------------+
+  |     1| Mirroring. Each disk has a duplicate.                |
+  +------+------------------------------------------------------+
+  |     5|Rotating parity stripe. A single drive failure does   |
+  |      |not cause data loss.                                  |
+  +------+------------------------------------------------------+
+  |     6| Can handle loss of two disks.                        |
+  +------+------------------------------------------------------+
+  |    10| Can be seen as RAID 1+0.                             |
+  +------+------------------------------------------------------+
+
+
+7.9.1 Configure software RAID
+╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌╌
+
+  1. Create partitions on each disk
+  2. Create a RAID device:
+     ┌────
+     │ apt-get install mdadm
+     │ mdadm --create /dev/md0 --level=5 --raid-devices=4 /dev/sdb /dev/sdc /dev/sdd /dev/sde
+     └────
+  3. Format RAID device:
+     ┌────
+     │ mkfs.ext4 /dev/md0
+     └────
+  4. Make it persistent, such that after a reboot the RAID array will
+     reform:
+     ┌────
+     │ mdadm --detail --scan >> /etc/mdadm/mdadm.conf
+     └────
+  5. Update `/etc/fstab':
+     ┌────
+     │ echo -e "/dev/md0\t/mnt/raid5-md0\text4\tdefaults\t0\t0" >> /etc/fstab
+     └────
+  6. Mount the RAID device:
+     ┌────
+     │ mkdir /mnt/raid5-md0
+     │ mount /dev/md0 /mnt/raid5-md0
+     └────
+  7. Examine RAID status:
+     ┌────
+     │ cat /proc/mdstat
+     └────
+  8. The raid device can be stopped using:
+     ┌────
+     │ mdadm -S /dev/md0
+     └────
+  9. Monitoring of the device can be done with:
+     ┌────
+     │ mdadm --detail /dev/md0
+     │ cat /proc/mdstat
+     └────
+  10. Edit `/etc/mdadm/mdadm.conf' and change `MAILADDR root' to
+          `MAILADDR any@email.domain'
+
+
+7.10 Create logical volumes
+───────────────────────────
+
+  LVM groups one or more physical volumes into volume groups, which can
+  be sub-divided into logical volumes, which mimic nominal disk
+  partitions.
+
+  The steps are:
+  1. create partitions using fdisk
+  2. Install tools:
+     ┌────
+     │ apt-get install lvm2
+     └────
+  3. Initialize physical volumes for use by LVM:
+     ┌────
+     │ pvcreate /dev/sdb1
+     │ pvcreate /dev/sdb2
+     └────
+  4. Merge sdb1 and sdb2 into one group:
+     ┌────
+     │ vgcreate vg0 /dev/sdb1 /dev/sdc1
+     └────
+  5. Create the logical volume:
+     ┌────
+     │ lvcreate --size 350M --name lv1 vg0
+     └────
+  6. Display physical volumes:
+     ┌────
+     │ pvdisplay
+     └────
+  7. Display logical volumes:
+     ┌────
+     │ lvdisplay
+     └────
+  8. Logical volumes are now in `/dev/vg0/lv*'
+  9. Format and mount
+     ┌────
+     │ mkfs.ext4 /dev/vg0/lv0
+     │ mkdir /mnt/lv0
+     │ mount -t ext4 /dev/vg0/lv0 /mnt/lv0
+     └────
+  10. `df -h'
+  11. Add to `/etc/fstab'
+  12. Add another physical volume to the logical:
+      ┌────
+      │ vgextend vg0 /dev/sdc1
+      │ lvextend --size +100M /dev/vg0/lv0
+      │ lvreduce --size 100M /dev/vg0/lv0
+      └────
+  When resizing volumes it is useful to create a snapshot of logical
+  volumes with the `lvcreate -s' or `lvcreate --snapshot' switch to
+  ensure that data is not lost. To do so there must be enough room on
+  the volume group first. The following is a demonstration of a snapshot
+  for `lv0':
+  ┌────
+  │ lvcreate --size 100M --snapshot --name l-vol0-snapshot /dev/vg0/lv0
+  └────
+
+
+8 Virtualization
+════════════════
+
+  1. Install virtualization tools:
+     ┌────
+     │ apt-get install qemu-kvm virtinst
+     │ virt-install
+     │ virsh
+     └────
+
+
+9 Additional
+════════════
+
+  • `mkfifo' (named pipes)
+  • review `vim'
+  • see man page of `touch'
+  • compare binary files: `cmp'
+  • `md5sum'
+  • Check primary language of a system
+    ┌────
+    │ echo $LANGUAGE
+    │ echo $LANG
+    └────
+  • Print all environmental variables
+    ┌────
+    │ env
+    │ printenv
+    └────
+
+
+10 References
+═════════════
+
+  • [https://training.linuxfoundation.org/certification/linux-foundation-certified-sysadmin-lfcs/]
+  • [http://www.obriain.com/training/LFCS/LFCS_v1.5.pdf]
+  • [https://github.com/jjberrow/LFCS_Study_Guide/]
+  • [https://github.com/simonesavi/lfcs]
+  • [https://github.com/ttwd80/lfcs/tree/master/domains]
+  • [https://github.com/karakays/lfcs]
+  • [https://www.tecmint.com/category/lfcs/]
+  • [https://stackoverflow.com/questions/14471564/what-does-ulimit-s-unlimited-do]
+  • [https://www.tecmint.com/category/lfcs/]
