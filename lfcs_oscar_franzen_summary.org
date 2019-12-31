@@ -1,0 +1,1369 @@
+* Intro
+These are my notes for the Linux Foundation Certified System administrator
+(LFCS) exam. The notes are *not* a complete guide to the exam, but I think
+they cover the main topics. I have compiled these notes from multiple sources
+freely available on the internet as a summary for myself. References are found
+at the bottom of this document. Hopefully this summary is also helpful for
+anyone else pursuing LFCS.
+
+Commands have been tested on Ubuntu 19. To be less repetitive, I have omitted
+=sudo= from many commands that must be executed as root.
+
+- Oscar Franzén <p.oscar.franzen@gmail.com>
+* Basics
+- terminal = *tty* = virtual console
+- pseudo-ttys = terminal emulators, e.g. Xterm, tmux, etc
+- shell = the program you see when you log in, e.g. bash, zsh, sh
+- an /inode/ is a data structure on disk that describes and stores file
+  attributes and location
+** File system layout
++--------+---------------------------------------------+
+| Path   | Description                                 |
++--------+---------------------------------------------+
+| /bin/  | Essential binaries.                         |
++--------+---------------------------------------------+
+| /sbin/ | System binaries.                            |
++--------+---------------------------------------------+
+| /usr/  | Contains user applications, package manager,|
+|        | files, etc.                                 |
++--------+---------------------------------------------+
+| /boot/ | Compressed kernel image (vmlinuz), initramfs|
+|        | (initial RAM filesystem, mounted before real|
+|        | root filesystem becomes available).         |
++--------+---------------------------------------------+
+| /opt/  | Proprietary software or software downloaded |
+|        | w/o package managers.                       |
++--------+---------------------------------------------+
+| /root/ | Root lives here.                            |
++--------+---------------------------------------------+
+| /var/  | Data that change frequently, etc log files, |
+|        |mail, transient data cache, lock files.      |
+|        |                                             |
++--------+---------------------------------------------+
+| /run/  | A pseudo-fs. Transient data.                |
++--------+---------------------------------------------+
+| /dev/  | Device files. Represents connected devices. |
++--------+---------------------------------------------+
+| /proc/ | Pseudo-filesystem in memory with kernel data|
+|        |structures and processes.                    |
++--------+---------------------------------------------+
+| /home/ | Contains users' files and directories. But  |
+|        |root is /root/                               |
++--------+---------------------------------------------+
+** systemd
+- an =init= replacement designed to start processes in parallel, it has always
+  =pid=1=
+- we can see that on Ubuntu, =/sbin/init= points to =/lib/systemd/systemd=
+- Emulates "runlevels" for compatibility with old init (=sysvinit=) using
+  /targets/
+- =runlevel= to display current runlevel
+- Change runlevel with =telinit N= where N is the runlevel
+- Runlevels:
++----------+----------------------------------+
+| Runlevel | Description                      |
++----------+----------------------------------+
+|        0 | Halt the system. Runlevel 0 is a |
+|          |special transitional state used to|
+|          |shutdown the system quickly.      |
++----------+----------------------------------+
+|        1 |Maintenance mode used for         |
+|          |low-level system maintenance that |
+|          |may be impaired by normal system  |
+|          |operation.                        |
+|          |                                  |
++----------+----------------------------------+
+|        2 | The default runlevel (on         |
+|          |Debian-based systems).            |
++----------+----------------------------------+
+|        3 | Not used on Debian-based systems.|
++----------+----------------------------------+
+|        4 | Not used on Debian-based systems.|
++----------+----------------------------------+
+|        5 | Not used on Debian-based systems.|
++----------+----------------------------------+
+|        6 |Reboot the system.                |
++----------+----------------------------------+
+- Runlevel can be changed with =init [0-6]= although this is not the recommended
+  way to change runlevel
+- =service= is a wrapper for =systemctl= and =service= supports a subset of
+  actions. =systemctl= is the main utility for service management.
+*** Bash scripting
+#+BEGIN_SRC bash
+if CONDITION; then 
+	COMMANDS;
+else
+	OTHER-COMMANDS 
+fi
+#+END_SRC
+| Condition        | Evaluates to true when                |
+|------------------+---------------------------------------|
+| [ -a file ]      | file exists                           |
+| [ -d file ]      | file exists and is a directory        |
+| [ -f file ]      | file exists and is a regular file     |
+| [ -u file ]      | file exists and its SUID bit is set   |
+| [ -g file ]      | file exists and its GUID bit is set   |
+| [ -k file ]      | file exists and its sticky bit is set |
+| [ -r file ]      | file exists and is readable           |
+| [ -s file ]      | file exists and it is not empty       |
+| [ -w file ]      | file exists and it is writable        |
+| [ -x file ]      | file exists and it is executable      |
+| [ str1 = str2 ]  | Strings are equal                     |
+| [ str1 != str2 ] | Strings are not equal                 |
+
+Integer comparisons
+| Condition     | Evaluates to true when                 |
+|---------------+----------------------------------------|
+| int1 -eq int2 | int2 equals to int2                    |
+| int1 -ne int2 | int1 not equal to int2                 |
+| int1 -lt int2 | int1 is less than int2                 |
+| int1 -le int2 | int1 is less or equal to int2          |
+| int1 -gt int2 | int1 is greater than int2              |
+| int1 -ge int2 | int1 is grreater than or equal to int2 |
+
+=$?= gives the exit status of the last executed command
+** Change lost root password 
+1. Press shift at boot
+2. In the GRUB menu press 'e'
+3. On the line starting with 'linux', change 'ro' to 'rw init=/bin/bash'
+4. Press CTRL+X
+5. =passwd root=
+6. Reboot
+* Essential commands
+** Help
+Config examples are present in =/usr/share/doc/=.
+#+BEGIN_SRC bash
+# compile manual index
+mandb
+man -k keyword
+info command
+#+END_SRC
+** trivial
+#+BEGIN_SRC bash
+whoami
+#+END_SRC
+** root
+Any member of group =wheel= have sudo access.
+#+BEGIN_SRC bash
+# inherit user session
+su
+# fresh session
+su -
+# login as a different user, "-" is a shortcut for "-login"
+su - user
+# add to wheel
+usermod -aG wheel user
+#+END_SRC
+*** visudo
+Used to edit the =/etc/sudoers= file. A line like this gives any member of the
+group =wheel= sudo access:
+#+BEGIN_SRC bash
+%wheel ALL = (ALL) ALL
+                   ^ indicate what programs are allowed to run, ALL for all
+foobar ALL = (root:root) /sbin/test
+#+END_SRC
+** Showing logged in users and what they are doing
+#+BEGIN_SRC bash
+w
+#+END_SRC
+** IO redirection
+#+BEGIN_SRC bash
+program < input_file
+program > output_file
+program 2> error_file
+program > output_file 2>error_file
+echo 'hello world' > file1
+# appends a line
+echo 'hi again' >> file1
+#+END_SRC
+** Search for files
+#+BEGIN_SRC shell
+find / -name "passwd"
+find / -name "*passwd*"
+# find files named 'zic' that are rwx for u and rx for g and o
+# execute echo on each file found
+find / -name "zic" -perm 755 -exec echo '{}' \;
+# find all files smaller than 100kb
+find / -size -100k
+find / -maxdepth 3 -type f -size +2M
+# find file1 _or_ file2, \ to escape (
+find / \( -name file1 -o -name file2 \)
+# identify all hard links to the file 'foobar'
+# (i.e., finding all files with the same inode)
+find / -samefile foobar
+# list all files not owner by user 'root'
+find / \! -user root
+# search case insensitive
+find / -iname "PassWd"
+# identify files with identical permissions to 222
+# 222 = w-rx for ugo
+find / -perm 222
+# at least permission 222
+find / -perm -222
+# write for u or write for g or write for o
+find / -perm /222
+# files accessed at least 24 hours ago
+find / -atime +1
+# uses a previously constructed database
+locate file
+# update the database
+updatedb
+#+END_SRC
+** Working with files
+*** The editor =vi=
+| Command | What it does                            |
+|---------+-----------------------------------------|
+| i       | Insert mode                             |
+| ESC     | Exit any mode to command mode           |
+| o       | Enter insert mode and insert a new line |
+| :wq!    | Write and quit                          |
+| :q!     | Quit w/o saving                         |
+| :w!     | Force write                             |
+| u       | Undo                                    |
+| gg      | Go to beginning of file                 |
+| G       | Go to end of file                       |
+| :/foo   | Search for the string "foo"             |
+| n       | Next occurence                          |
+| N       | Previous occurence                      |
+| :42     | Go to line 42                           |
+| dd      | Delete the current line                 |
+| x       | Delete the selected character           |
+| v       | Select text                             |
+| y       | Copy selected text                      |
+| p       | Paste selected text                     |
+| d       | Delete selected text                    |
+*** File globbing
+| Example       | Files and directories it matches |
+|---------------+----------------------------------|
+| ls -l a*      | Beginning with a                 |
+| ls -l a?      | Two characters beginning with a  |
+| ls -l a[ab]   | aa or bb                         |
+| ls -l a[a-c]  | aa, ab or ac                     |
+| ls -l a[a-c]* | Begin with aa, ab or ac          |
+*** Comparing files
+**** diff/diff3
+#+BEGIN_SRC bash
+diff file1 file2
+# output side by side in two columns
+diff -y file1 file2
+# compare 3 files line by line
+diff3
+#+END_SRC
+*** uniq - collapse consecutive lines
+#+BEGIN_SRC 
+# Compare only first two characters
+uniq -w 2 file
+# Prefix lines with number of occurences
+uniq -c file
+#+END_SRC
+*** grep
+#+BEGIN_SRC bash
+# print the file name of the match
+grep -l pattern path
+# also search subdirectories of path
+grep -lr pattern path
+# as above but with case insensitive
+grep -lri pattern path
+#+END_SRC
+*** sed
+#+BEGIN_SRC bash
+sed 's/source/target/' file
+sed 's/source/target/g' file
+# case inensitive
+sed 's/source/target/gi' file
+# apply only on row 2
+sed '2s/source/target/' file
+# print only changed rows
+sed -n 's/source/target/p' file
+# prints lines 2 to 4
+sed -n 2,4p file
+# deletes lines with source
+sed '/source/d' file
+# delete line 12
+sed -n 12d file
+# insert "hej" on line 5
+sed '5ihej' file
+#+END_SRC
+*** Other commands
+#+BEGIN_SRC bash
+# sort based on column 2
+sort -k 2 file
+# cut using one whitespace as delimiter and print column 1 from file
+cut -d " " -f1 file
+# print columns 1 and 3 from file
+cut -d " " -f1.3 file
+ls
+# long output
+ls -l
+# show hidden files
+ls -la
+# recursive
+ls -lR
+# list by time stamp
+ls -lt
+# show directory properties and not its content
+ls -ld
+# shows current directory
+pwd
+# print file content
+cat
+tac
+# copy file1 and file2 to dest
+cp file1 file2 /dest
+# recursive
+cp -r source/ target/
+# rename a file/dir or move it
+mv file1 file2
+# remove a directory including read only files
+rm -rf dir
+# makes parent directories if needed
+mkdir -p foo/bar
+# removes dir (only if dir is empty)
+rmdir dir
+sed
+# estimate space used by a file or dir (default returns size in kb)
+du /sbin/
+awk
+cut
+# substitute string1 with string2
+tr string1 string2
+# substitute repeated occurences of one character with a single one of
+# that character
+tr -s ' '
+paste
+# print last 10 lines of file
+tail file
+# print last 20 lines
+tail -n 20 file
+# output the tail of the file as it grows
+tail -f file
+# print first 10 lines of file
+head file
+# creates an empty file
+touch file
+# specific timestamp
+touch -t YYMMDDhhmm file
+patch
+sed
+awk
+# add line numbers
+cat <file> | nl
+#+END_SRC
+*** I-nodes and links
+**** Hard links
+More than one file can point to the same i-node. Must be on the same
+device. Cannot be directories.
+#+BEGIN_SRC bash
+# creates a hard link
+ln target newname
+# the inode will be the same for the files
+ls -il
+#+END_SRC
+**** Symbolic links
+Points to a file. If the file is removed the link becomes invalid. Symbolic
+links have different inode numbers.
+#+BEGIN_SRC bash
+ln -s target linkname
+# create a symbolic link to sbin in the current dir
+ln -s /sbin/
+#+END_SRC
+**** Show inode for a file or dir
+First column shows the i-node number.
+#+BEGIN_SRC bash
+ls -li
+#+END_SRC
+** Backup, compression, etc
+*** Archiving
+#+BEGIN_SRC bash
+# make tar.bz2 archive
+tar -jcvf file.tar.bz2 *
+# uncompress
+tar -jxvf file.tar.bz2
+# print content of tar file
+tar -tf file.tar
+# delete a file from a tar file
+tar --delete -f test.tar file
+#+END_SRC
+*** Backups
+**** dd
+The =dd= program is very useful for making copies of raw disk space. A common
+joke with =dd= is that is stands for *data destroyer*, so it should be noted that
+it's a very dangerous utility.
+
+Write a file containing zeros:
+#+BEGIN_SRC bash
+dd if=/dev/zero of=/mnt/drive/foobar bs=2G count=1
+#+END_SRC
+***** Create a backup
+The device _must_ be unmounted
+#+BEGIN_SRC bash
+dd if=/dev/sda of=/system_images/sda.img
+# make a complete copy of one disk onto another
+dd if=/dev/sda of=/dev/sdb
+#+END_SRC
+***** Restore a backup
+#+BEGIN_SRC bash
+dd if=/system_images/sda.img of=/dev/sda
+#+END_SRC
+***** Copy Master Boot Record (MBR)
+#+BEGIN_SRC bash
+# MBR is always stored in the first 512 bytes of the disk
+# bs sets the block size, count copies this number of blocks
+# bs*count is the amount of data copied
+dd if=/dev/sda of=mbr_sda.backup bs=512 count=1
+#+END_SRC
+**** rsync
+#+BEGIN_SRC bash
+rsync -avr source dest
+# -z adds compression
+rsync -avrz source user@192.168.0.2:~/dest
+# use ssh
+rsync -avre ssh source user@192.168.0.2:~/dest
+#+END_SRC
+** Permissions
+*** Octal representations of permissions
+Sum represents combinations.
+| Octal | Meaning       |
+|-------+---------------|
+|     0 | no permission |
+|     1 | x             |
+|     2 | w             |
+|     4 | r             |
+|     5 | rx            |
+|     6 | rw            |
+|     7 | rwx           |
+
+#+BEGIN_SRC shell
+# change owner
+chown
+# change group
+chgrp
+# change permissions
+chmod
+# example of chmod
+chmod u+rwx,g+r,o+r fil
+#+END_SRC
+
+**** Examples
+| Octal | Meaning          |
+|-------+------------------|
+|  0666 | rw for everyone  |
+|  0777 | rwx for everyone |
+
+*** setuid, setgid
+Run a program as the user/group set as owner of the file. Cannot be applied to
+bash scripts.
+#+BEGIN_SRC bash
+chmod u+s test
+chmod g+s test
+#+END_SRC
+*** Sticky bit
+When a directory's sticky bit is set, the filesystem treats the files in such
+directories in a special way so only the file's owner, the directory's owner, or
+root user can rename or delete the file. Without the sticky bit set, any user
+with write and execute permissions for the directory can rename or delete
+contained files, regardless of the file's owner. For example =/tmp/= has +t.
+#+BEGIN_SRC bash
+chmod +t directory_name
+#+END_SRC
+*** Extended attributes
+Metadata associated with files. Extended attributes are not interpreted by the
+file system. Extended attributes consists of namespaces. Stored in the /inode/
+of the file. ACL uses the =system= namespace.
+
+Examples:
+| Flag | Meaning                                                  |
+|------+----------------------------------------------------------|
+| I    | Immutable, no user can change it. No hard links.         |
+| a    | Apppend-only                                             |
+| A    | No-atime-update (access time of the file is not updated) |
+#+BEGIN_SRC bash
+lsattr
+=chattr [+|-|=mode] filename=
+#+END_SRC
+*** umask
+Can be used to remove permissions from newly created files.
+#+BEGIN_SRC bash
+# remove write permissions from newly created files
+umask 222
+#+END_SRC
+** Root
+Sudo file is stored in =/etc/sudoers/= and =/etc/sudoers.d/=.
+#+BEGIN_SRC bash
+$ sudo -s
+#+END_SRC
+** Processes and resource limits
+*** Process types
++-----------------+------------------------------------------------+
+| Process type    | Description                                    |
+|                 |                                                |
++-----------------+------------------------------------------------+
+|   Interactive   |   Need to be started by a user, either at a    |
+|     process     |           command line or through a            |
+|                 |              graphical interface.              |
++-----------------+------------------------------------------------+
+| Batch Processes | Automatic processes which aree scheduled from  |
+|                 |and then disconnected from the terminal.        |
++-----------------+------------------------------------------------+
+| Daemons         | Server processes running continuously. Mauny   |
+|                 |launched during system startup.                 |
++-----------------+------------------------------------------------+
+| Threads         | Lightweight processes that are run under the   |
+|                 |umbrella of a main process.                     |
++-----------------+------------------------------------------------+
+| Kernel threads  | Kernel tasks that users neither start nor      |
+|                 |terminate and have little control over.         |
++-----------------+------------------------------------------------+
+*** Useful commands
+#+BEGIN_SRC bash
+ps
+ps -u <username>
+pgrep
+kill
+pkill
+# kill all processes owned by group with GID=99
+pkill -G 99
+# kill all processes whose parent process is 4992
+pkill -P 4992
+killall
+#+END_SRC
+*** ulimit
+Used to get or set resource limits.
+#+BEGIN_SRC bash
+# see current limits
+ulimit -a
+#+END_SRC
+**** Limit stack size
+When you call a function, a new "namespace" is allocated on the stack. That's
+how functions can have local variables. As functions call functions, which in
+turn call functions, we keep allocating more and more space on the stack to
+maintain this deep hierarchy of namespaces.
+
+To curb programs using massive amounts of stack space, a limit is usually put in
+place via ulimit -s. If we remove that limit via ulimit -s unlimited, our
+programs will be able to keep gobbling up RAM for their evergrowing stack until
+eventually the system runs out of memory entirely.
+
+#+BEGIN_SRC bash
+ulimit -s 4096
+#+END_SRC
+*** Set global resource limits
+- Done in =/etc/security/limits.conf=
+- Config format:
+ #+BEGIN_SRC
+ *    hard    nproc    10
+ ^ user group or all (*)
+
+      ^ hard or soft limit
+
+              ^ whatever should be enforced (number of processes here)
+
+                       ^ the actual limit
+ #+END_SRC
+** Inspect library dependencies
+Use =ldd <command>=.
+** Useful utils
+*** tree
+Prints tree structure of a directory.
+#+BEGIN_SRC bash
+apt-get install tree
+tree
+#+END_SRC
+** Locate a program
+#+BEGIN_SRC bash
+which ls
+# also locates where man page is (+ source code)
+whereis ls
+#+END_SRC
+* Operation of running systems
+** Boot, reboot, shutdown
+#+BEGIN_SRC bash
+# power off, -h as in halt
+shutdown -h now
+# reboot
+shutdown -r now
+# legacy commands
+reboot
+halt
+poweroff
+#+END_SRC
+** Modules
+- Modules have =*.ko= extensions and are found in
+  =/lib/modules/<kernel-version/=
+- =lsmod= lists loaded modules
+- =modprobe= to load module using a database of dependency information
+  - Modules can be loaded specifying parameters: =modprobe e1000e debug=2
+    copybreak=256=
+  - =/etc/modprobe.d/= contains default parameters applied when loading a module
+    with modprobe
+  - Module dependencies will be loaded as well
+- =modprobe -r= to unload module
+- =insmod= is another way to load modules directly
+- =rmmod= is another way to unload modules
+- =modinfo= to show details such as version, module dependencies, supported
+  hardwares, what parameters can be supploed during loading etc.
+- =depmod= to rebuild the module database
+** GRand Unified Boot loader (GRUB)
+- Config is =/etc/default/grub= and if it is modified then run =update-grub=
+after (the actual file read by GRUB at boot is =/boot/grub/grub.cfg/=, but it
+should not be modified manually).
+- If GRUB is not installed for some reason, install it with =grub-install
+  /dev/sdX=
+** Manage processes
+*** mpstat
+#+BEGIN_SRC bash
+apt-get install sysstat
+mpstat
+# -P to indicate which cpus
+# -u for CPU utilization
+# 2 second intervals
+# 3 reports
+mpstat -P ALL -u 2 3
+#+END_SRC
+*** ps
+| Term | Desc              |
+|------+-------------------|
+| pid  | Process id        |
+| ppid | Parent process id |
+#+BEGIN_SRC bash
+# all processes
+# BSD style syntax
+ps aux
+# UNIX style syntax
+ps -aux
+ps -eo pid,ppid,cmd,%cpu,%mem --sort=-%cpu
+#+END_SRC
+| column  | meaning                                                         |
+|---------+-----------------------------------------------------------------|
+| user    | owner                                                           |
+| pid     | process ID                                                      |
+| %cpu    | CPU time divided by the time the process has been running       |
+| %mem    | resident set size divided by memory of the machine              |
+| VSZ     | virtual memory in KiB                                           |
+| RSS     | resident memory in KiB, i.e. non-swapped physical memory        |
+| tty     | attached terminal                                               |
+| stat    | process state                                                   |
+| start   | start time of the process                                       |
+| time    | cumulative CPU time                                             |
+| command | command, those within [] are system processes of kernel threads |
+*** /proc/
+- Processes are actually directories in =/proc/[pid]=
+- Contains current state of each process running
+  - Child processes
+  - Memory usage
+- =/proc/meminfo=
+- =/proc/sys/=
+  - Contains tunable kernel parameters as plain text files
+  - Can be changed with =sysctl= (or by writing to files directly)
+    - Print kernel setting: =sysctl kernel.pid_max=, corresponding to
+      =/proc/sys/kernel/pid_max=
+    - =sysctl -a= prints all available settings
+  - =/etc/sysctl.conf= contains parameters applied during boot, to make a change
+    permanent, add it to this file. To apply current config without rebooting,
+    run =sysctl -p=
+*** list open files by a process
+#+BEGIN_SRC bash
+lsof -p [pid]
+#+END_SRC
+*** Priorities
+Lower niceness means higher priority. Range is from -20 to 19.
+#+BEGIN_SRC bash
+# run a program with modified scheduling priority
+nice -n value command
+# alter priority of running processes (only root)
+renice -n value [pid]
+#+END_SRC
+*** kill
+#+BEGIN_SRC bash
+# send SIGTERM
+kill pid
+# send SIGKILL
+kill -9 pid
+# list all available signals
+kill -l
+#+END_SRC
+**** Signals
+| Signal  | Description                                       |
+|---------+---------------------------------------------------|
+| SIGHUP  | Terminate                                         |
+| SIGINT  | Terminate, interrupt from keyboard, CTRL-C        |
+| SIGFPE  | Core dump, sent from kernel                       |
+| SIGKILL | Terminate, abnormal termination                   |
+| SIGTERM | Terminate, graceful termination (default in kill) |
+| SIGSTOP | Stop, cannot be handled or ignored                |
+| SIGTSTP | CTRL-Z                                            |
+| SIGCONT | Continue                                          |
+| SIGCHLD | Ignore, child stopped                             |
+| SIGPIPE | Terminate, broken pipe, socket closed             |
+*** crontab
+#+BEGIN_SRC bash
+crontab -e
+# or as root to modify a specific users cron jobs
+crontab -e -u user
+#+END_SRC
+*** at
+#+BEGIN_SRC bash
+apt-get install at
+service atd status
+at
+atq
+atrm
+#+END_SRC
+*** sar
+System activity reporter.
+#+BEGIN_SRC bash
+# CPU usage report 3 times in intervals of 3 seconds
+sudo sar 3 3
+#+END_SRC
+*** misc
+#+BEGIN_SRC bash
+pgrep name
+pstree
+uptime
+strace
+free
+# mainly for virtual memory stats but also for CPU, process and disk statistics
+vmstat
+pmap
+iotop
+iostat
+# prioritize a process in io scheduling
+ionice
+#+END_SRC
+*** 
+** AppArmor
+- Alternative to SELinux
+- Profile based
+- Two modes:
+  1. Enforce
+  2. Complain
+#+BEGIN_SRC bash
+apt-get install apparmor-profiles
+apparmor_status
+# put profile in complain mode
+aa-complain
+# put profile in enforcement mode
+aa-enforce
+#+END_SRC
+** Package managers
+*** dpkg
+A low-level package manager. Database is located in =/var/lib/dpkg=.
+#+BEGIN_SRC bash
+# list installed packages
+dpkg -l
+# list installed files from a package
+dpkg -L package
+# query status of an installed package
+dpkg -s package
+# list content of deb package
+dpkg -c package.deb
+# install deb package
+dpkg -i package.deb
+# remove package
+dpkg -r package.deb
+#+END_SRC
+*** Advanced Packacking Tool (apt)
+- Based on =dpkg=.
+#+BEGIN_SRC bash
+apt-cache search term
+apt-cache show pkg
+# Show packages whose name starts with prefix
+apt-cache pkgnames openjdk
+# Search all packages that contains file
+apt-file search file
+# List all files in the pkg. pkg doesn't need to be installed or fetched
+apt-file list pkg
+apt-get autoremove
+apt-get clean
+apt-get update
+apt-get install pkg
+apt-get [--purge] remove pkg
+apt-get upgrade
+#+END_SRC
+* User and group management
+** /etc/passwd
+The second field is password, is it has an =x=, then passwords are managed by
+=/etc/shadow=. =/etc/passwd= has 644 permissions that means anyone can read
+it. This is because system programs and user apps need to read the information
+in that file. On the other hand, =/etc/shadow= has 400 permissions. =/etc/shadow= is
+preferred way to keep passwords as it prevents anyone to read hashed passwords.
+** Adding users
+#+BEGIN_SRC bash
+sudo su
+groupadd test
+useradd mrtest
+useradd mstest
+usermod -a -G test mrtest
+usermod -a -G test mstest
+# lock user account
+usermod -L username
+# A locked password prevents a user to authenticate with that password, however, user
+# can authenticate by other means, e.g. ssh keys etc. Locking an account eliminates to
+# authenticate and use that account in any way,
+passwd -l username
+mkdir /mnt/asdf
+touch /mnt/asdf/acl.txt
+chgrp -R test /mnt/asdf/
+chmod ug+rwx /mnt/asdf
+chmod o+rx-w /mnt/asdf
+# The point is to give a user access to /mnt/asdf without adding the user to the test group
+# since that also gives access to other files.
+userdel user
+# chage (change user password expiry)
+chage <username>
+# create system account (default shell should be nologin)
+useradd -r -s /usr/sbin/nologin
+#+END_SRC
+** ACL
+- If files inside a directory where a default ACL has been set do not have a ACL
+  of their own, they inherit the default ACL of their parent directory.
+*** Install =getfacl= and =setfacl=:
+=sudo apt-get install acl=
+*** Check compatibility of the file system with ACL:
+=tunefs -l /dev/sda2 | grep "Default mount options"
+*** =setfacl -m u:rand:rw /mnt/asdf/test.txt=
+*** =getfacl test.txt=
+*** Set to a directory: 
+=setfacl -m d:o:r /mnt/test/=
+*** Remove all ACL:
+=setfacl -b /mnt/test/=
+** Adding sudo capability for a user
+Don't edit /etc/sudoers or /etc/sudoers.d/ directly, rather use =visudo=,
+because problems are checked before saving. For example, to add =sudo=
+capability for user "test" add this line:
+#+BEGIN_SRC 
+test ALL=(ALL:ALL) ALL
+#+END_SRC
+** Show which shell is used
+#+BEGIN_SRC bash
+echo $SHELL
+#+END_SRC
+** Bash restricted shell
+Prevents:
+- cd directories
+- changing certain environment variables
+- specify an absolut path in any command
+- IO redirecting
+#+BEGIN_SRC bash
+bash -r
+#+END_SRC
+** Pluggable Authentication Modules (PAM)
+- Provides authentication policies in a uniformed and modular way for various
+applications. A PAM-aware application invokes libpam which in turn checks these
+configuration files to apply rules and invokes PAM modules. PAM integrates
+low-level authentication modules into a high-level API that provides dynamic
+authentication support for applications. This allows developers to write
+applications that require authentication, independently of the underlying
+authentication system.
+- _To employ PAM, an application/program needs to be “PAM aware“; it needs to have
+been written and compiled specifically to use PAM. To find out if a program is
+“PAM-aware” or not, check if it has been compiled with the PAM library using
+=ldd command=._
+- Main config file is =/etc/pam.conf= and =/etc/pam.d/= contain PAM config files
+  for each PAM-aware program.
+- PAM libraries are found in =/usr/lib/x86_64-linux-gnu/security= (many so files
+  here have man pages: =man listfile=)
+** Show available shells and who I am
+#+BEGIN_SRC bash
+cat /etc/shells
+echo $USER
+#+END_SRC
+* Networking
+** Basic networking
+=ifconfig= is deprecated, use =ip=
+*** Show IP address configuration
+ip addr show
+ip a s
+*** set IP using nmgui/nmci
+#+BEGIN_SRC bash
+nmtui
+nmcli # CLI for network manager
+#+END_SRC
+*** set IP manually
+ip link set eth0 down
+ip addr add 192.168.0.2/24 dev eth0
+ip link set eth0 up
+*** set hostname
+Modify: /etc/hostname
+Show current hostname: hostname
+*** Static DNS entries
+/etc/hosts
+** Installing an ftp server
+Install the very secure ftp server and configure it for anonymous access to a specific directory.
+1. =sudo apt-get install vsftpd=
+2. =sudo service vsftpd start=
+3. Config file is =/etc/vsftpd.conf=
+   - Create a directory for data (anonymous access will be allowed):
+     =sudo mkdir /datamkdir /mnt/asdf/=
+4. Modify the config file:
+   - =sudo vim /etc/vsftpd.conf=
+   - Make sure the settings are:
+     #+BEGIN_SRC shell
+     anonymous_enable=YES
+     anon_root=/data/
+     no_anon_password=YES
+     write_enable=YES
+     local_enable=YES
+     #+END_SRC
+   - Restrict users to their home directories:
+     #+BEGIN_SRC 
+     chroot_local_user=YES
+     chroot_list_enable=YES
+     chroot_list_file=/etc/vsftpd_chroot_list
+     #+END_SRC
+   - Create an empty file: =touch /etc/vsftpd_chroot_list=
+   - Rate limits in kb:
+     #+BEGIN_SRC 
+     anon_max_rate=10240 # 10 kb
+     local_max_rate=20480 # 20 kb
+     max_per_ip=5 # 5 connections
+     #+END_SRC
+   - Restrict data transfers to this port range:
+     #+BEGIN_SRC 
+     pasv_enable=YES
+     pasv_max_port=15500
+     pasv_min_port=15000
+     #+END_SRC
+** Firewall
+- The kernel firewall is *NetFilter*
+- The utility to manage rules is *iptables*
+- A frontend for *iptables* is UncomplicatedFirewall (*ufw*)
+**** iptables
+#+BEGIN_SRC bash
+# list rules
+iptables -L
+# verbose
+iptables -L -v
+#+END_SRC
+**** ufw
+#+BEGIN_SRC bash
+ufw allow ssh/tcp
+ufw logging on
+ufw enable
+ufw status
+# block all network connections from one IP
+ufw deny from 15.15.15.51
+# block entire subnet
+ufw deny from 15.15.15.0/24
+# only for a specific network interface
+ufw deny in on eth0 from 15.15.15.51
+# allow ssh
+ufw allow ssh
+# or
+ufw allow 22
+ufw allow from 15.15.15.0/24 to any port 873
+#+END_SRC
+** Show ports opened by a process
+#+BEGIN_SRC bash
+# all processes
+netstat -tln 
+#+END_SRC
+** Routing
+Routing IP traffic:
+#+BEGIN_SRC bash
+ip route show
+# or
+route -n
+# Add route to 192.0.2.1 through 10.0.0.1
+ip route add 192.0.2.1 via 10.0.0.1
+#+END_SRC
+
+To configure system as route forward must be enabled:
+=echo 1 > /proc/sys/net/ipv4/ip_forward=
+** Mount NFS share
+#+BEGIN_SRC bash
+# only client package needed, no need for server components
+apt-get install nfs-common
+mount -t nfs <IP>:/NameOfShare /mnt/my_mounted_nfs
+#+END_SRC
+
+Permanently, by adding line to =/etc/fstab=:
+#+BEGIN_SRC bash
+IP:/NFS-SHARE/    /mount/point    nfs    defaults    0    0
+#+END_SRC
+** Running NFS server to share directories
+#+BEGIN_SRC bash
+apt-get install nfs-kernel-server
+#+END_SRC
+** Recursive DNS caching server
+- =apt-get install bind9 bind9utils=
+- =named= is one service within bind, its config is
+  =/etc/bind/named.conf.options=, add the following so its within =options {
+  ... }=:
+ #+BEGIN_SRC bash
+ recursion yes;
+ # use google name servers as forwarders
+ forwarders {
+    8.8.8.8;
+    8.8.4.4;
+ };
+ #+END_SRC
+- Local zones are configured in =/etc/named.conf.local=, examples:
+ #+BEGIN_SRC bash
+ # DNS -> IP
+ zone "testing.example.com." IN {
+     type master;
+     file "/etc/bind/db.testing.example.com";
+ };
+ 
+ # for reverse DNS, i.e. IP -> DNS
+ zone "2.0.10.in-addr.arpa" IN {
+     type master;
+     file "/etc/bind/2.0.10.in-addr.arpa";
+ };
+ #+END_SRC
+- Content of =/etc/bind/db.testing.example.com=:
+ #+BEGIN_SRC bash
+ $TTL   604800
+ @      IN      SOA    testing.example.com. root.testing.example.com. (
+                             3; <-- serial increment
+                             ...
+                             ...
+                             ...
+                             ...)
+@       IN      NS     ns.testing.example.com.
+ns      IN      A      10.0.2.15
+web1    IN      A      10.0.2.16
+@       IN      AAAA   ::1
+ #+END_SRC
+- Content of =/etc/bind/2.0.10.in-addr.arpa=:
+ #+BEGIN_SRC bash
+ ; SOA lines are same as before
+ @      IN      NS     ns.testing.example.com.
+ 15     IN      PTR    ns.testing.example.com.
+ 16     IN      PTR    web1.testing.example.com.
+ #+END_SRC
+- Use =named-checkzone= to check for errors
+- Restart bind: =service bind9 restart=
+- Don't forget to change name server on the system to try it (or use =dig @IP
+  domain=)
+* Storage configuration
+- SSD naming schjeme is =/dev/nvme{order}n{ns}p{part}= where ={order}= is the
+  disk order number, ={ns}= is the namespace, and ={part}= is the partition
+  number.
+- =blkid= can be used to identify block device attributes.
+- =lsblk= lists all block devices found.
+  =lsblk -f= prints file system type and UUID
+** Partioning
+- Partitions can be MBR or GPT
+  - Limit of maximum 4 partitions with MBR
+  - Limit of maximum 128 partitions with GPT
+- For MBR, an extended partition is a normal partition that has been divided
+  into multiple logic partitions so that it is possible to have more than four
+  partitions. Only *one* extended partition can be present.
+- For creating MBR, use =fdisk=, for GPT use =parted= (can also create MBR) or
+  =gdisk=.
+#+BEGIN_SRC bash
+fdisk
+# list all partitions
+fdisk -l
+parted -l
+#+END_SRC
+** File systems
+Applications do not access the physical disk directly. Instead, application code
+access data contents by file names which is an abstraction by the filesystem.
+Every file is associated with an inode. inode is a datastructures that holds
+following metadata about the file:
+*** Examples
+- ext3
+- ext4
+- btrfs
+- xfs
+- vfat (non-Linux)
+- ntfs (non-Linux)
+- hfs (non-Linux)
+Available file system creation utilities: =ls -l /sbin/mkfs*=
+*** tune2fs
+Tune ext file system parameters such as:
+- maximum mount count before =fsck= is called
+- time interval between =fsck= 
+- =tune2fs -l <dev-node>= to see all parameters that can be updated.
+** Mounting
+UUIDs are reliable because they are unique and consistent. Filesystem UUIDs are
+generated when creating (format) a filesystem.
+#+BEGIN_SRC bash
+mount filesystem_uuid /mount-point
+mount partition_label /mount-point
+# List all mounted filesystems
+mount -l
+#+END_SRC
+** Fix file system errors
+- Should only be run on unmounted file systems
+- Main utility: =fsck= (files recovered by this program are placed in the
+  =lost+found= directory at the root of the file system)
+- The easiest way to force a check of the filesystem on next reboot is to create
+  a file =/forcefsck= at the filesystem
+** df
+#+BEGIN_SRC bash
+# -T adds "Type" column
+df -hT
+#+END_SRC
+** Encrypted partition
+Options are dm-crypt and Linux Unified Key Setup (LUKS). LUKS is more secure
+(according to =info cryptsetup=).
+#+BEGIN_SRC bash
+apt-get install cryptsetup
+# setup a partition
+cryptsetup luksFormat /dev/sdb1
+# initializes the volume, and sets an initial key or passphrase
+cryptsetup luksOpen /dev/sdb1 testing
+# You can see a mapping name /dev/mapper/testing
+ls -l /dev/mapper/testing
+cryptsetup -v status testing
+# Create a file system
+mkfs.ext4 /dev/mapper/testing
+# Mount
+mount -t ext4 /dev/mapper/testing /mnt/point
+# Unmount
+umount /mnt/point
+cryptsetup luksClose /dev/mapper/testing
+#+END_SRC
+*** Mount at boot
+To mount an encrypted partition at boot time, add a normal entry to
+=/etc/fstab=. =/etc/fstab= is not aware that device is encrypted.
+1. Make entry in =/etc/fstab=:
+ #+BEGIN_SRC bash
+ /dev/mapper/testing /media/enc ext4 defaults 0 2
+ #+END_SRC
+2. Make entry in =/etc/crypttab=. If key-file is omitted, secret will be asked
+   from the console.
+ #+BEGIN_SRC bash
+ testing /dev/sda1 luks-secret-file
+ # or specify the fourth field as "none" to prompt for passphrase
+ # interactively from console
+ testing /dev/sda1 none luks
+ #+END_SRC
+*** Encrypt a swap device
+Data written to the swap device can contain sensitive information, and as such
+it is important to consider security.
+1. Find out the partition that is currently being used for swap, then deactivate
+   it:
+   #+BEGIN_SRC bash
+   cat /proc/swap
+   #+END_SRC
+2. swapoff /dev/sda2
+3. Format:
+ #+BEGIN_SRC bash
+ cryptsetup luksFormat /dev/sda2
+ cryptsetup luksOpen /dev/sda2 swapcrypt
+ #+END_SRC
+4. Make it swap
+ #+BEGIN_SRC bash
+ mkswap /dev/mapper/swapcrypt
+ #+END_SRC
+5. Test it
+ #+BEGIN_SRC bash
+ swapon /dev/mapper/swapcrypt
+ cat /proc/swaps
+ #+END_SRC
+6. Add entry to =/etc/crypttab=
+ #+BEGIN_SRC bash
+ swapcrypt /dev/sda2 /dev/urandom swap,cipher=aes-cbc-essiv:sha256,size=256
+ #+END_SRC
+7. Add entry to =/etc/fstab=
+ #+BEGIN_SRC bash
+ /dev/mapper/swapcrypt none swap defaults 0 0
+ #+END_SRC
+** Swap space
+Virtual memory can make Linux function as if it has more memory than it
+physically has, and works in two ways:
+1. Many programs don't use all the memory they have permission to use. This is
+   because child processes are created using copy-on-write (COW) and only gets a
+   new page of memory if there is a change.
+2. Memory can be swapped to disk when inactive and only recalled when needed
+   again.
+#+BEGIN_SRC bash
+mkswap /dev/sdX1
+swapon /dev/sdX1
+swapoff
+cat /proc/swaps
+#+END_SRC
+Add entry to =/etc/fstab=:
+#+BEGIN_SRC bash
+/dev/sdX1 swap swap sw 0 0
+#+END_SRC
+** Quota
+Disk quotas control maximum space particular users can have on the disk. Quotas
+are based per filesystem basis. There are limits on number of blocks and
+inodes. These limits are expressed as *soft* and *hard* limits. Hard limits can
+never be exceeded. _Soft limits can be exceeded for a grace period_.
+*** Creating quotas
+1. Install:
+ #+BEGIN_SRC bash
+ apt-get install quota
+ #+END_SRC
+2. File systems must be mounted with the =usrquota= or =grpquota= options.
+ #+BEGIN_SRC bash
+ mount -o usrquota /dev/sdxN /mount-point
+ #+END_SRC
+3. Generate quota accounting files (stored in root of quoted filesystem):
+ #+BEGIN_SRC bash
+ quotacheck -v /media/
+ #+END_SRC
+ =quotacheck= is also used to update quotas.
+4. Turn on quotas:
+ #+BEGIN_SRC bash
+ # -u = user quotas, the default (can be omitted)
+ quotaon -vu /media/usb
+ #+END_SRC
+5. Set up quotas per user or group:
+ #+BEGIN_SRC bash
+ edquota user
+ #+END_SRC
+6. To change grace period (editor will launch):
+ #+BEGIN_SRC bash
+ edquota -t
+ #+END_SRC
+7. To query quota information of current user:
+ #+BEGIN_SRC bash
+ quota
+ #+END_SRC
+*** Turn quotas off
+#+BEGIN_SRC bash
+quotaoff
+#+END_SRC
+** RAID
+- Redundant Array of Independenty Disks (RAID), spreads I/O over multiple disks
+- Can be hardware or software (part of the kernel)
+- With hardware RAID, the OS is unaware that RAID is in use
+- If hardware controller fails, an identical one must be used; however, in
+  software RAID the same disks can be attached to any controller for lower- to
+  mid-range hardware.
++------+------------------------------------------------------+
+|Level | Description                                          |
++------+------------------------------------------------------+
+|     0| No data spreading across disks. No redundancy.       |
++------+------------------------------------------------------+
+|     1| Mirroring. Each disk has a duplicate.                |
++------+------------------------------------------------------+
+|     5|Rotating parity stripe. A single drive failure does   |
+|      |not cause data loss.                                  |
++------+------------------------------------------------------+
+|     6| Can handle loss of two disks.                        |
++------+------------------------------------------------------+
+|    10| Can be seen as RAID 1+0.                             |
++------+------------------------------------------------------+
+*** Configure software RAID
+1. Create partitions on each disk
+2. Create a RAID device:
+ #+BEGIN_SRC bash
+ apt-get install mdadm
+ mdadm --create /dev/md0 --level=5 --raid-devices=4 /dev/sdb /dev/sdc /dev/sdd /dev/sde
+ #+END_SRC
+3. Format RAID device:
+ #+BEGIN_SRC bash
+ mkfs.ext4 /dev/md0
+ #+END_SRC
+4. Make it persistent, such that after a reboot the RAID array will reform:
+ #+BEGIN_SRC bash
+ mdadm --detail --scan >> /etc/mdadm/mdadm.conf
+ #+END_SRC
+5. Update =/etc/fstab=:
+ #+BEGIN_SRC bash
+ echo -e "/dev/md0\t/mnt/raid5-md0\text4\tdefaults\t0\t0" >> /etc/fstab
+ #+END_SRC
+6. Mount the RAID device:
+ #+BEGIN_SRC bash
+ mkdir /mnt/raid5-md0
+ mount /dev/md0 /mnt/raid5-md0
+ #+END_SRC
+7. Examine RAID status:
+ #+BEGIN_SRC bash
+ cat /proc/mdstat
+ #+END_SRC
+8. The raid device can be stopped using:
+ #+BEGIN_SRC bash
+ mdadm -S /dev/md0
+ #+END_SRC
+9. Monitoring of the device can be done with:
+ #+BEGIN_SRC bash
+ mdadm --detail /dev/md0
+ cat /proc/mdstat
+ #+END_SRC
+10. Edit =/etc/mdadm/mdadm.conf= and change =MAILADDR root= to =MAILADDR
+    any@email.domain=
+** Create logical volumes
+LVM groups one or more physical volumes into volume groups, which can be
+sub-divided into logical volumes, which mimic nominal disk partitions.
+
+The steps are:
+1. create partitions using fdisk
+2. Install tools:
+ #+BEGIN_SRC bash
+ apt-get install lvm2
+ #+END_SRC
+3. Initialize physical volumes for use by LVM:
+ #+BEGIN_SRC bash
+ pvcreate /dev/sdb1
+ pvcreate /dev/sdb2
+ #+END_SRC
+4. Merge sdb1 and sdb2 into one group:
+ #+BEGIN_SRC bash
+ vgcreate vg0 /dev/sdb1 /dev/sdc1
+ #+END_SRC
+5. Create the logical volume:
+ #+BEGIN_SRC bash
+ lvcreate --size 350M --name lv1 vg0
+ #+END_SRC
+6. Display physical volumes:
+ #+BEGIN_SRC bash
+ pvdisplay
+ #+END_SRC
+7. Display logical volumes:
+ #+BEGIN_SRC bash
+ lvdisplay
+ #+END_SRC
+8. Logical volumes are now in =/dev/vg0/lv*=
+9. Format and mount
+ #+BEGIN_SRC bash
+ mkfs.ext4 /dev/vg0/lv0
+ mkdir /mnt/lv0
+ mount -t ext4 /dev/vg0/lv0 /mnt/lv0
+ #+END_SRC
+10. =df -h=
+11. Add to =/etc/fstab=
+12. Add another physical volume to the logical:
+ #+BEGIN_SRC bash
+ vgextend vg0 /dev/sdc1
+ lvextend --size +100M /dev/vg0/lv0
+ lvreduce --size 100M /dev/vg0/lv0
+ #+END_SRC
+When resizing volumes it is useful to create a snapshot of logical volumes with
+the =lvcreate -s= or =lvcreate --snapshot= switch to ensure that data is not
+lost. To do so there must be enough room on the volume group first. The
+following is a demonstration of a snapshot for =lv0=:
+#+BEGIN_SRC bash
+lvcreate --size 100M --snapshot --name l-vol0-snapshot /dev/vg0/lv0
+#+END_SRC
+* Virtualization
+1. Install virtualization tools:
+ #+BEGIN_SRC bash
+ apt-get install qemu-kvm virtinst
+ virt-install
+ virsh
+ #+END_SRC
+* Additional
+- =mkfifo= (named pipes)
+- review =vim=
+- see man page of =touch=
+- compare binary files: =cmp=
+- =md5sum=
+- Check primary language of a system
+ #+BEGIN_SRC bash
+ echo $LANGUAGE
+ echo $LANG
+ #+END_SRC
+- Print all environmental variables
+ #+BEGIN_SRC bash
+ env
+ printenv
+ #+END_SRC
+* References
+- https://training.linuxfoundation.org/certification/linux-foundation-certified-sysadmin-lfcs/
+- http://www.obriain.com/training/LFCS/LFCS_v1.5.pdf
+- https://github.com/jjberrow/LFCS_Study_Guide/
+- https://github.com/simonesavi/lfcs
+- https://github.com/ttwd80/lfcs/tree/master/domains
+- https://github.com/karakays/lfcs
+- https://www.tecmint.com/category/lfcs/
+- https://stackoverflow.com/questions/14471564/what-does-ulimit-s-unlimited-do
+- https://www.tecmint.com/category/lfcs/
